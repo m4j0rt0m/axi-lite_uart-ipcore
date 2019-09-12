@@ -1,15 +1,19 @@
-/* -----------------------------------------------
+/* -------------------------------------------------------------------------------
  * Project Name   : DRAC
- * File           : uart_core.v
+ * File           : axi_uart_top.v
  * Organization   : Barcelona Supercomputing Center, CIC-IPN
- * Author(s)      : Abraham J. Ruiz R., Vatistas Kostalabros
- * Email(s)       : abraham.ruiz@bsc.es, vatistas.kostalabros@bsc.es
+ * Author(s)      : Abraham J. Ruiz R. (aruiz)
+ *                  Vatistas Kostalabros (vkostalamp)
+ * Email(s)       : abraham.ruiz@bsc.es
+ *                  vatistas.kostalabros@bsc.es
  * References     :
- * -----------------------------------------------
+ * -------------------------------------------------------------------------------
  * Revision History
  *  Revision   | Author      | Commit | Description
- *  ******     | vkostalamp  | 236c2  | Contribution
- * -----------------------------------------------*/
+ *  1.0        | aruiz       | *****  | First IP version with Avalon-Bus interface
+ *  2.0        | vkostalamp  | 236c2  | Contribution
+ *  2.1        | aruiz       | *****  | Code refactoring with asynchronous reset
+ * -----------------------------------------------------------------------------*/
 
 `default_nettype none
 
@@ -107,14 +111,14 @@ module axi_uart_top (/*AUTOARG*/
   wire                        push_controller_rx_fifo;    //
   reg                         rx_fifo_pull_int;           //
   wire  [DATA_WIDTH_UART-1:0] data_rx_controller_fifo;    //..uart->fifo
-  wire  [DATA_WIDTH_UART-1:0] rx_fifo_data_out_int;       //..fifo->avalon
+  wire  [DATA_WIDTH_UART-1:0] rx_fifo_data_out_int;       //..fifo->axi
   wire  [AXI_FIFO_ADDR:0]     rx_fifo_space_int;          //
   reg                         tx_fifo_reset_int;          //
   reg                         tx_fifo_push_int;           //
   wire                        pull_controller_tx_fifo;    //
   wire                        load_tx_fifo_controller;    //
   wire                        tx_fifo_full_int;           //
-  reg   [DATA_WIDTH_UART-1:0] tx_fifo_data_in_int;        //..avalon->fifo
+  reg   [DATA_WIDTH_UART-1:0] tx_fifo_data_in_int;        //..axi->fifo
   wire  [DATA_WIDTH_UART-1:0] data_tx_fifo_controller;    //..fifo->uart
   wire  [AXI_FIFO_ADDR:0]     tx_fifo_available_int;      //
   wire  [AXI_FIFO_ADDR:0]     tx_fifo_space_int;          //
@@ -141,7 +145,7 @@ module axi_uart_top (/*AUTOARG*/
 
   /*-----------------------------------------------------------------READ FSM---------------------------------------------------------------------------*/
 
-  /* avalon slave read bus interface ctrl */
+  /* slave read bus interface ctrl */
   localparam  ResetReadState  = 4'b0000;  // 0
   localparam  ConfigReadState = 4'b0011;  // 3
   localparam  IdleReadState   = 4'b0101;  // 5
@@ -169,7 +173,7 @@ module axi_uart_top (/*AUTOARG*/
           axi_rdata_o       <=  0;
           axi_rvalid_o      <=  1'b0;
           axi_rid_o         <=  {AXI_ID_WIDTH{1'b0}};
-          rx_fifo_reset_int <=  1'b0;
+          rx_fifo_reset_int <=  1'b1;
           rx_fifo_pull_int  <=  1'b0;
           read_state        <=  ConfigReadState;
         end
@@ -228,7 +232,7 @@ module axi_uart_top (/*AUTOARG*/
           axi_rvalid_o      <=  1'b0;
           axi_rid_o         <=  {AXI_ID_WIDTH{1'b0}};
           rx_fifo_pull_int  <=  1'b0;
-          rx_fifo_reset_int <=  1'b1;
+          rx_fifo_reset_int <=  1'b0;
           read_state        <=  IdleReadState;
         end
         default: read_state <= ResetReadState;
@@ -239,11 +243,11 @@ module axi_uart_top (/*AUTOARG*/
 
   /*-----------------------------------------------------------------WRITE FSM---------------------------------------------------------------------------*/
 
-  /* avalon slave bus interface ctrl */
-  localparam  ResetWriteState = 4'b0000;  // 0 //
-  localparam  IdleWriteState  = 4'b0101;  // 5 //
-  localparam  AckWriteState   = 4'b1001;  // 9 //
-  reg [3:0] write_state;                  //
+  /* slave write bus interface ctrl */
+  localparam  ResetWriteState = 3'b000; // 0 //
+  localparam  IdleWriteState  = 3'b011; // 3 //
+  localparam  AckWriteState   = 3'b101; // 5 //
+  reg [2:0] write_state;
 
   /*
   Always description:
@@ -273,7 +277,7 @@ module axi_uart_top (/*AUTOARG*/
           axi_bvalid_o          <=  1'b0;
           axi_bresp_o           <=  2'b0;
           axi_bid_o             <=  {AXI_ID_WIDTH{1'b0}};
-          tx_fifo_reset_int     <=  1'b0;
+          tx_fifo_reset_int     <=  1'b1;
           tx_fifo_push_int      <=  1'b0;
           uart_baudrate_div_int <=  434;
           baudrate_divisor_int  <=  434;
@@ -288,7 +292,7 @@ module axi_uart_top (/*AUTOARG*/
                 if (uart_dlab_int == 0 & ~tx_fifo_full_int) begin //give access only of the specific bit is set to zero added the check not to send if the fifo is allready full
                   axi_awready_o       <=  1'b1;//0;
                   axi_wready_o        <=  1'b1;//0;
-                  axi_bvalid_o        <=  1'b0;
+                  axi_bvalid_o        <=  1'b1;
                   axi_bresp_o         <=  2'b0;
                   tx_fifo_push_int    <=  1'b1;
                   tx_fifo_data_in_int <=  axi_wdata_i[DATA_WIDTH_UART-1:0];
@@ -296,7 +300,7 @@ module axi_uart_top (/*AUTOARG*/
                 end else begin
                   axi_awready_o       <=  1'b1;
                   axi_wready_o        <=  1'b1;
-                  axi_bvalid_o        <=  1'b0;
+                  axi_bvalid_o        <=  1'b1;
                   axi_bresp_o         <=  2'b0;
                   write_state         <=  AckWriteState;
                 end
@@ -305,14 +309,14 @@ module axi_uart_top (/*AUTOARG*/
                 if (uart_dlab_int == 0) begin //give access only of the specific bit is set to zero
                   axi_awready_o   <=  1'b1;
                   axi_wready_o    <=  1'b1;
-                  axi_bvalid_o    <=  1'b0;
+                  axi_bvalid_o    <=  1'b1;
                   axi_bresp_o     <=  2'b0;
                   uart_irq_en_int <=  axi_wdata_i[0];
                   write_state     <=  AckWriteState;
                 end else begin
                   axi_awready_o   <=  1'b1;
                   axi_wready_o    <=  1'b1;
-                  axi_bvalid_o    <=  1'b0;
+                  axi_bvalid_o    <=  1'b1;
                   axi_bresp_o     <=  2'b0;
                   write_state     <=  AckWriteState;
                 end
@@ -321,14 +325,14 @@ module axi_uart_top (/*AUTOARG*/
                 if (uart_dlab_int == 1) begin //give access only of the specific bit is set to one
                   axi_awready_o         <=  1'b1;
                   axi_wready_o          <=  1'b1;
-                  axi_bvalid_o          <=  1'b0;
+                  axi_bvalid_o          <=  1'b1;
                   axi_bresp_o           <=  2'b0;
                   baudrate_divisor_int  <=  axi_wdata_i;
                   write_state           <=  AckWriteState;
                 end else begin
                   axi_awready_o         <=  1'b1;
                   axi_wready_o          <=  1'b1;
-                  axi_bvalid_o          <=  1'b0;
+                  axi_bvalid_o          <=  1'b1;
                   axi_bresp_o           <=  2'b0;
                   write_state           <=  AckWriteState;
                 end
@@ -336,7 +340,7 @@ module axi_uart_top (/*AUTOARG*/
               UART_LCR:            begin
                 axi_awready_o       <=  1'b1;
                 axi_wready_o        <=  1'b1;
-                axi_bvalid_o        <=  1'b0;
+                axi_bvalid_o        <=  1'b1;
                 axi_bresp_o         <=  2'b0;
                 uart_config_reg_int <=  axi_wdata_i;
                 write_state         <=  AckWriteState;
@@ -344,7 +348,7 @@ module axi_uart_top (/*AUTOARG*/
               default:    begin    // The case where the address is not present but we doo not want the AXI bus to hang
                 axi_awready_o <=  1'b1;
                 axi_wready_o  <=  1'b1;
-                axi_bvalid_o  <=  1'b0;
+                axi_bvalid_o  <=  1'b1;
                 axi_bresp_o   <=  2'b0;
                 write_state   <=  AckWriteState;
               end
@@ -362,11 +366,11 @@ module axi_uart_top (/*AUTOARG*/
         AckWriteState:    begin
           axi_awready_o         <=  1'b0;
           axi_wready_o          <=  1'b0;
-          axi_bvalid_o          <=  1'b1;
+          axi_bvalid_o          <=  1'b0;
           axi_bresp_o           <=  2'b0;
           axi_bid_o             <=  {AXI_ID_WIDTH{1'b0}};
           tx_fifo_push_int      <=  1'b0;
-          tx_fifo_reset_int     <=  1'b1;
+          tx_fifo_reset_int     <=  1'b0;
           uart_baudrate_div_int <=  baudrate_divisor_int;
           write_state           <=  IdleWriteState;
         end
@@ -439,8 +443,10 @@ module axi_uart_top (/*AUTOARG*/
     if(~axi_aresetn_i)    begin
       read_interrupt_o                        <=  0;
       uart_lsr_reg_int                        <=  32'h00000060; //..initial value for LSR
-    end else    begin
+    end
+	 else begin
       read_interrupt_o                        <=  ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
+//      uart_lsr_reg_int                        =  32'h00000000;
       uart_lsr_reg_int[UART_LSR_TEMT]         <=  available_write_space_int;
       uart_lsr_reg_int[UART_LSR_DATA_READY]   <=  ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
     end
@@ -469,8 +475,10 @@ module axi_uart_top (/*AUTOARG*/
   );
 
   assign tx_fifo_space_int          = tx_status_int[AXI_FIFO_ADDR:0];
-  assign load_tx_fifo_controller    = tx_status_int[AXI_FIFO_ADDR+1];
+  assign load_tx_fifo_controller    = tx_status_int[AXI_FIFO_ADDR+3];
   assign tx_fifo_full_int           = tx_status_int[AXI_FIFO_ADDR+2];
-  assign available_write_space_int  = tx_status_int[AXI_FIFO_ADDR+3];
+  assign available_write_space_int  = tx_status_int[AXI_FIFO_ADDR+1];
 
 endmodule
+
+`default_nettype wire

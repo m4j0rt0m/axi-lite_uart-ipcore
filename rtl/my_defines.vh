@@ -1,3 +1,15 @@
+/* -------------------------------------------------------------------------------
+ * Project Name   : DRAC
+ * File           : my_defines.vh
+ * Organization   : Barcelona Supercomputing Center, CIC-IPN
+ * Author(s)      : Abraham J. Ruiz R. (aruiz)
+ * Email(s)       : abraham.ruiz@bsc.es
+ * References     :
+ * -------------------------------------------------------------------------------
+ * Revision History
+ *  Revision   | Author      | Commit | Description
+ *  1.0        | aruiz       | *****  | First macro defines version
+ * -----------------------------------------------------------------------------*/
 
   `ifndef _MY_DEFINES_
   `define _MY_DEFINES_

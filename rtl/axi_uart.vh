@@ -1,15 +1,19 @@
- /* -----------------------------------------------
+/* -------------------------------------------------------------------------------
  * Project Name   : DRAC
  * File           : axi_uart.vh
  * Organization   : Barcelona Supercomputing Center, CIC-IPN
- * Author(s)      : Abraham J. Ruiz R., Vatistas Kostalabros
- * Email(s)       : abraham.ruiz@bsc.es, vatistas.kostalabros@bsc.es
+ * Author(s)      : Abraham J. Ruiz R. (aruiz)
+ *                  Vatistas Kostalabros (vkostalamp)
+ * Email(s)       : abraham.ruiz@bsc.es
+ *                  vatistas.kostalabros@bsc.es
  * References     :
- * -----------------------------------------------
+ * -------------------------------------------------------------------------------
  * Revision History
  *  Revision   | Author      | Commit | Description
- *  ******     | vkostalamp  | 236c2  | Contribution
- * -----------------------------------------------*/
+ *  1.0        | aruiz       | *****  | First IP version with Avalon-Bus interface
+ *  2.0        | vkostalamp  | 236c2  | Contribution
+ *  2.1        | aruiz       | *****  | Code refactoring with asynchronous reset
+ * -----------------------------------------------------------------------------*/
 
   `ifndef _AXI_UART_H_
   `define _AXI_UART_H_
@@ -51,5 +55,3 @@
   `define _DATA_WIDTH_UART_ 8
 
   `endif
-
-/* Implement alternative frequency register */

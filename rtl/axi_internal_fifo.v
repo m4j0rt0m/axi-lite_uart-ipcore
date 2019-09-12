@@ -1,16 +1,19 @@
- /* -----------------------------------------------
+ /* -----------------------------------------------------------------------------
  * Project Name   : DRAC
  * File           : axi_internal_fifo.v
  * Organization   : Barcelona Supercomputing Center, CIC-IPN
- * Author(s)      : Abraham J. Ruiz R., Vatistas Kostalabros
- * Email(s)       : abraham.ruiz@bsc.es, vatistas.kostalabros@bsc.es
+ * Author(s)      : Abraham J. Ruiz R. (aruiz)
+ *                  Vatistas Kostalabros (vkostalamp)
+ * Email(s)       : abraham.ruiz@bsc.es
+ *                  vatistas.kostalabros@bsc.es
  * References     :
- * -----------------------------------------------
+ * ------------------------------------------------------------------------------
  * Revision History
  *  Revision   | Author      | Commit | Description
- *  ******     | vkostalamp  | 236c2  | Contribution
- * -----------------------------------------------*/
-
+ *  1.0        | aruiz       | *****  | First IP version with Avalon-Bus interface
+ *  2.0        | vkostalamp  | 236c2  | Contribution
+ *  2.1        | aruiz       | *****  | Code refactoring with asynchronous reset
+ * -----------------------------------------------------------------------------*/
 
  `default_nettype none
 
@@ -48,7 +51,7 @@ module axi_internal_fifo
   input   wire  [DATA_SIZE-1:0]   data_i;   // Gets an 8-bit character and feeds it to the FIFO
   output  wire  [DATA_SIZE-1:0]   data_o;   // Gets the value at the end of the FIFO
 
-  output  reg   [STATUS_WIDTH:0]  status_o; // status flag -> (PORT_EN){load, full, available, space}
+  output  wire  [STATUS_WIDTH:0]  status_o; // status flag -> (PORT_EN){load, full, available, space}
 
   /* some parameters */
   localparam FIFO_THRESHOLD  =  90;     // The amount of empty places that have to remain empty otherwise the FIFO signals full signal
@@ -155,7 +158,7 @@ module axi_internal_fifo
   assign data_o = fifo_int[head_int];
 
   /*
-    flag status generate (NOTE: There should be a better way to generate this..)
+    "STATUS" flag generate (NOTE: There should be a better way to generate this..)
     available_write_space: Sets a threshold for Tx queue and when it is surpassed then  the available write space signal is lowered or raised respectively
     load: Gets the MSB and if '1' the FIFO is full
     full: If head pointer is valid you can pull fro mthe FIFO
