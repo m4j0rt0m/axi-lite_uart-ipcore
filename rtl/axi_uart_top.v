@@ -11,15 +11,17 @@
  * Revision History
  *  Revision   | Author      | Commit | Description
  *  1.0        | aruiz       | *****  | First IP version with Avalon-Bus interface
- *  2.0        | vkostalamp  | 236c2  | Contribution
+ *  2.0        | vkostalamp  | 236c2  | AXI-Bus porting
  *  2.1        | aruiz       | *****  | Code refactoring with asynchronous reset
+ *  3.0        | aruiz       | *****  | Two clock domains integration, a fixed
+ *             |             |        | clock and an axi-bus clock
  * -----------------------------------------------------------------------------*/
 
 `default_nettype none
 
 /*
-Title: uart_core
-This is the top level file of the uart core. It contains two decoupled FSM's (one for reading and one for writing in order to fulfil the AXI protocol specs)
+Title: axi_uart_top
+This is the top level file of the axi-lite uart core. It contains two decoupled FSM's (one for reading and one for writing in order to fulfil the AXI protocol specs)
 It also further instatiates the appropriate controller module as well as a receiver and transmitter FIFO that communicates with the AXI bus.
 */
 module axi_uart_top (/*AUTOARG*/
@@ -35,22 +37,21 @@ module axi_uart_top (/*AUTOARG*/
 
   /* includes */
   `include "axi_uart_defines.vh"  //..axi interface defines
-  `include "my_defines.vh"        //..common define macros
   `include "axi_uart.vh"          //..uart custom register map & configuration bits
 
   /* local parameters */
-  localparam  BYTE            = `_BYTE_;
+  localparam  BYTE            = 8;
   localparam  AXI_DATA_WIDTH  = `_AXI_UART_DATA_WIDTH_;
   localparam  AXI_ADDR_WIDTH  = `_AXI_UART_ADDR_WIDTH_;
   localparam  AXI_DIV_WIDTH   = `_AXI_UART_DIV_WIDTH_;
   localparam  AXI_ID_WIDTH    = `_AXI_UART_ID_WIDTH_;
   localparam  AXI_RESP_WIDTH  = `_AXI_UART_RESP_WIDTH_;
   localparam  AXI_FIFO_DEPTH  = `_AXI_UART_FIFO_DEPTH_;
-  localparam  AXI_FIFO_ADDR   = `_myLOG2_(AXI_FIFO_DEPTH-1);
+  localparam  AXI_FIFO_ADDR   = $clog2(AXI_FIFO_DEPTH);
   localparam  AXI_BYTE_NUM    = AXI_DATA_WIDTH/BYTE;
-  localparam  AXI_LSB_WIDTH   = `_myLOG2_(AXI_BYTE_NUM-1);
+  localparam  AXI_LSB_WIDTH   = $clog2(AXI_BYTE_NUM);
   localparam  DEADLOCK_LIMIT  = 15;
-  localparam  DEADLOCK_WIDTH  = `_myLOG2_(DEADLOCK_LIMIT-1);
+  localparam  DEADLOCK_WIDTH  = $clog2(DEADLOCK_LIMIT);
 
   /* axi-uart parameters */
   localparam  UART_RBR                = `_UART_RBR_;
@@ -68,41 +69,41 @@ module axi_uart_top (/*AUTOARG*/
   localparam  DATA_WIDTH_UART         = `_DATA_WIDTH_UART_;
 
   /* axi4-lite interface ports */
-  input                             axi_aclk_i;
-  input                             axi_aresetn_i;
+  input   wire                        axi_aclk_i;
+  input   wire                        axi_aresetn_i;
 
-  input       [AXI_ID_WIDTH-1:0]    axi_arid_i;
-  input       [AXI_ADDR_WIDTH-1:0]  axi_araddr_i;
-  input                             axi_arvalid_i;
-  output reg                        axi_arready_o;
+  input   wire  [AXI_ID_WIDTH-1:0]    axi_arid_i;
+  input   wire  [AXI_ADDR_WIDTH-1:0]  axi_araddr_i;
+  input   wire                        axi_arvalid_i;
+  output  wire                        axi_arready_o;
 
-  output reg  [AXI_ID_WIDTH-1:0]    axi_rid_o;
-  output reg  [AXI_DATA_WIDTH-1:0]  axi_rdata_o;
-  output reg  [AXI_RESP_WIDTH-1:0]  axi_rresp_o;
-  output reg                        axi_rvalid_o;
-  input                             axi_rready_i;
+  output  wire  [AXI_ID_WIDTH-1:0]    axi_rid_o;
+  output  wire  [AXI_DATA_WIDTH-1:0]  axi_rdata_o;
+  output  wire  [AXI_RESP_WIDTH-1:0]  axi_rresp_o;
+  output  wire                        axi_rvalid_o;
+  input   wire                        axi_rready_i;
 
-  input       [AXI_ID_WIDTH-1:0]    axi_awid_i;
-  input       [AXI_ADDR_WIDTH-1:0]  axi_awaddr_i;
-  input                             axi_awvalid_i;
-  output reg                        axi_awready_o;
+  input   wire  [AXI_ID_WIDTH-1:0]    axi_awid_i;
+  input   wire  [AXI_ADDR_WIDTH-1:0]  axi_awaddr_i;
+  input   wire                        axi_awvalid_i;
+  output  wire                        axi_awready_o;
 
-  input       [AXI_DATA_WIDTH-1:0]  axi_wdata_i;
-  input       [AXI_BYTE_NUM-1:0]    axi_wstrb_i;
-  input                             axi_wvalid_i;
-  output reg                        axi_wready_o;
+  input   wire  [AXI_DATA_WIDTH-1:0]  axi_wdata_i;
+  input   wire  [AXI_BYTE_NUM-1:0]    axi_wstrb_i;
+  input   wire                        axi_wvalid_i;
+  output  wire                        axi_wready_o;
 
-  output reg  [AXI_ID_WIDTH-1:0]    axi_bid_o;
-  output reg  [AXI_RESP_WIDTH-1:0]  axi_bresp_o;
-  output reg                        axi_bvalid_o;
-  input                             axi_bready_i;
+  output  wire  [AXI_ID_WIDTH-1:0]    axi_bid_o;
+  output  wire  [AXI_RESP_WIDTH-1:0]  axi_bresp_o;
+  output  wire                        axi_bvalid_o;
+  input   wire                        axi_bready_i;
 
   /* uart interrupt */
-  output reg                        read_interrupt_o;
+  output  reg                         read_interrupt_o;
 
   /* uart interface ports */
-  input                             uart_rx_i;
-  output                            uart_tx_o;
+  input   wire                        uart_rx_i;
+  output  wire                        uart_tx_o;
 
   /* regs and wires */
   wire  [AXI_FIFO_ADDR:0]     rx_status_int;              //..rx status flag
@@ -191,7 +192,7 @@ module axi_uart_top (/*AUTOARG*/
               UART_RBR: begin //..read rx data
                 if (uart_dlab_int == 0) begin //give access only of the specific bit is set to zero
                   axi_arready_o     <=  1'b0;
-                  axi_rdata_o       <=  {{`_DIFF_SIZE_(AXI_DATA_WIDTH,DATA_WIDTH_UART){1'b0}},rx_fifo_data_out_int};
+                  axi_rdata_o       <=  {{(AXI_DATA_WIDTH-DATA_WIDTH_UART){1'b0}},rx_fifo_data_out_int};
                   axi_rvalid_o      <=  1'b1;
                   axi_rresp_o       <=  2'b0;
                   rx_fifo_pull_int  <=  1'b01;
