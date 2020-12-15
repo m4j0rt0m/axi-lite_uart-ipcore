@@ -24,7 +24,7 @@
   `define _UART_THR_          0
   // The interrupt enable register | UART_IRQ_EN
   `define _UART_IER_          1
-
+  //  Custom baud divisor register
   `define _UART_BAUD_DIVISOR_ 2
 
   /* LCR config bits */
