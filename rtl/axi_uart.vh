@@ -56,5 +56,10 @@
 
   /* axi uart parameters */
   `define _DATA_WIDTH_UART_ 8
+  `ifndef FPGA_FULL
+    `define _UART_BAUDRATE_DIV_INIT_ 1736
+  `else
+    `define _UART_BAUDRATE_DIV_INIT_ 434
+  `endif
 
   `endif
