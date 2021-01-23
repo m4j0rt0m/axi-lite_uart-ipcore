@@ -9,14 +9,14 @@ TOP_DIR             = $(shell dirname $(MKFILE_PATH))
 ### DIRECTORIES ###
 SOURCE_DIR          = $(TOP_DIR)/rtl
 OUTPUT_DIR          = $(TOP_DIR)/build
-TESTBENCH_DIR       = $(TOP_DIR)/test_bench
+#TESTBENCH_DIR       = $(TOP_DIR)/test_bench
 SCRIPT_DIR          = $(TOP_DIR)/scripts
 
 ### RTL WILDCARDS ###
 PRJ_SRC             = $(wildcard $(shell find $(SOURCE_DIR) -type f \( -iname \*.v -o -iname \*.sv -o -iname \*.vhdl \)))
 PRJ_DIRS            = $(wildcard $(shell find $(SOURCE_DIR) -type d))
 PRJ_HEADERS         = $(wildcard $(shell find $(SOURCE_DIR) -type f \( -iname \*.h \)))
-TESTBENCH_SRC       = $(wildcard $(shell find $(TESTBENCH_DIR) -type f \( -iname \*.v \)))
+#TESTBENCH_SRC       = $(wildcard $(shell find $(TESTBENCH_DIR) -type f \( -iname \*.v \)))
 PRJ_INCLUDES        = $(addprefix -I, $(PRJ_DIRS))
 
 ### PROJECT ###
@@ -25,7 +25,7 @@ TOP_MODULE          = axi_uart_top
 
 ### LINTER ###
 LINT                = verilator
-LINT_FLAGS          = --lint-only --top-module $(TOP_MODULE) -Wall -Wno-UNUSED $(PRJ_INCLUDES)
+LINT_FLAGS          = --lint-only --top-module $(TOP_MODULE) -Wall -Wno-fatal $(PRJ_INCLUDES)
 
 ### SIMULATION ###
 TOP_MODULE_SIM      = axi_uart_top
