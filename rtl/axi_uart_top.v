@@ -69,6 +69,7 @@ module axi_uart_top (/*AUTOARG*/
   localparam  UART_LSR_DATA_READY     = `_UART_LSR_DATA_READY_;
   localparam  UART_LSR_TEMT           = `_UART_LSR_TEMT_;
   localparam  DATA_WIDTH_UART         = `_DATA_WIDTH_UART_;
+  localparam  UART_BAUDRATE_DIV_INIT  = `_UART_BAUDRATE_DIV_INIT_;
 
   /* axi4-lite interface ports */
   input   wire                        fixed_clk_i;
@@ -246,7 +247,7 @@ module axi_uart_top (/*AUTOARG*/
       case(read_state)
         ResetReadState:        begin
           axi_arready       <=  1'b0;
-          axi_rdata         <=  0;
+          axi_rdata         <=  {AXI_DATA_WIDTH{1'b0}};
           axi_rvalid        <=  1'b0;
           axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
           rx_fifo_reset_int <=  1'b1;
@@ -339,9 +340,9 @@ module axi_uart_top (/*AUTOARG*/
       axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
       tx_fifo_reset_int     <=  1'b1;
       tx_fifo_push_int      <=  1'b0;
-      uart_baudrate_div_int <=  434;
-      baudrate_divisor_int  <=  434;
-      uart_config_reg_int   <=  0;
+      uart_baudrate_div_int <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+      baudrate_divisor_int  <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+      uart_config_reg_int   <=  {AXI_DATA_WIDTH{1'b0}};
       uart_irq_en_int       <=  1'b0;
       write_state           <=  ResetWriteState;
     end
@@ -355,9 +356,9 @@ module axi_uart_top (/*AUTOARG*/
           axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
           tx_fifo_reset_int     <=  1'b1;
           tx_fifo_push_int      <=  1'b0;
-          uart_baudrate_div_int <=  434;
-          baudrate_divisor_int  <=  434;
-          uart_config_reg_int   <=  0;
+          uart_baudrate_div_int <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+          baudrate_divisor_int  <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+          uart_config_reg_int   <=  {AXI_DATA_WIDTH{1'b0}};
           uart_irq_en_int       <=  1'b0;
           write_state           <=  IdleWriteState;
         end
@@ -519,7 +520,7 @@ module axi_uart_top (/*AUTOARG*/
   */
   always @ (posedge fixed_clk_i, negedge axi_aresetn_i) begin
     if(~axi_aresetn_i)    begin
-      read_interrupt_o                        <=  0;
+      read_interrupt_o                        <=  1'b0;
       uart_lsr_reg_int                        <=  32'h00000060; //..initial value for LSR
     end
 	 else begin
