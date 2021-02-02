@@ -1,18 +1,21 @@
-/* -------------------------------------------------------------------------------
- * Project Name   : DRAC
+/* -----------------------------------------------------------------------------
+ * Project        : AXI-lite UART IP Core
  * File           : axi_uart.vh
- * Organization   : Barcelona Supercomputing Center, CIC-IPN
- * Author(s)      : Abraham J. Ruiz R. (aruiz)
+ * Description    : AXI4-Lite UART Header file
+ * Organization   : BSC; CIC-IPN
+ * Author(s)      : Abraham J. Ruiz R. (aruiz) (https://github.com/m4j0rt0m)
  *                  Vatistas Kostalabros (vkostalamp)
- * Email(s)       : abraham.ruiz@bsc.es
+ * Email(s)       : abraham.ruiz@bsc.es; abraham.j.ruiz.r@gmail.com
  *                  vatistas.kostalabros@bsc.es
  * References     :
- * -------------------------------------------------------------------------------
+ * ------------------------------------------------------------------------------
  * Revision History
- *  Revision   | Author      | Commit | Description
- *  1.0        | aruiz       | *****  | First IP version with Avalon-Bus interface
- *  2.0        | vkostalamp  | 236c2  | Contribution
- *  2.1        | aruiz       | *****  | Code refactoring with asynchronous reset
+ *  Revision   | Author      | Description
+ *  1.0        | aruiz       | First IP version with Avalon-Bus interface
+ *  2.0        | vkostalamp  | AXI-Bus porting and documentation
+ *  2.1        | aruiz       | Code refactoring with asynchronous reset
+ *  3.0        | aruiz       | Two clock domains integration, a fixed
+ *             |             | clock and an axi-bus clock
  * -----------------------------------------------------------------------------*/
 
   `ifndef _AXI_UART_H_
@@ -53,5 +56,10 @@
 
   /* axi uart parameters */
   `define _DATA_WIDTH_UART_ 8
+  `ifndef FPGA_FULL
+    `define _UART_BAUDRATE_DIV_INIT_ 1736
+  `else
+    `define _UART_BAUDRATE_DIV_INIT_ 434
+  `endif
 
   `endif

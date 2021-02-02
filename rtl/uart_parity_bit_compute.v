@@ -1,26 +1,28 @@
- /* -----------------------------------------------------------------------------
- * Project Name   : DRAC
+/* -----------------------------------------------------------------------------
+ * Project        : AXI-lite UART IP Core
  * File           : uart_parity_bit_compute.v
- * Organization   : Barcelona Supercomputing Center, CIC-IPN
- * Author(s)      : Abraham J. Ruiz R. (aruiz)
+ * Description    : Generates the odd/even parity bit for the next rx/tx data packet
+ * Organization   : BSC; CIC-IPN
+ * Author(s)      : Abraham J. Ruiz R. (aruiz) (https://github.com/m4j0rt0m)
  *                  Vatistas Kostalabros (vkostalamp)
- * Email(s)       : abraham.ruiz@bsc.es
+ * Email(s)       : abraham.ruiz@bsc.es; abraham.j.ruiz.r@gmail.com
  *                  vatistas.kostalabros@bsc.es
  * References     :
  * ------------------------------------------------------------------------------
  * Revision History
- *  Revision   | Author      | Commit | Description
- *  1.0        | aruiz       | *****  | First IP version with Avalon-Bus interface
- *  2.0        | vkostalamp  | 236c2  | Contribution
- *  2.1        | aruiz       | *****  | Code refactoring with asynchronous reset
+ *  Revision   | Author      | Description
+ *  1.0        | aruiz       | First IP version with Avalon-Bus interface
+ *  2.0        | vkostalamp  | AXI-Bus porting and documentation
+ *  2.1        | aruiz       | Code refactoring with asynchronous reset
+ *  3.0        | aruiz       | Two clock domains integration, a fixed
+ *             |             | clock and an axi-bus clock
  * -----------------------------------------------------------------------------*/
 
 `default_nettype none
 
 /*
 Title: uart_parity_bit_compute
-Desciption of the module: you can use in every part of this desciption a @tag
-to reference another part of the codedoes not matter if it is in other file.
+This module generates the next odd/even parity bit.
 */
 module uart_parity_bit_compute (
   input   wire  clk_i,        // clock signal
