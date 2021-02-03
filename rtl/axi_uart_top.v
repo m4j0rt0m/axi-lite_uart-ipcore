@@ -68,6 +68,7 @@ module axi_uart_top (/*AUTOARG*/
   localparam  UART_LSR                = `_UART_LSR_;
   localparam  UART_LSR_DATA_READY     = `_UART_LSR_DATA_READY_;
   localparam  UART_LSR_TEMT           = `_UART_LSR_TEMT_;
+  localparam  UART_LSR_THRE           = `_UART_LSR_THRE_;
   localparam  DATA_WIDTH_UART         = `_DATA_WIDTH_UART_;
   localparam  UART_BAUDRATE_DIV_INIT  = `_UART_BAUDRATE_DIV_INIT_;
 
@@ -109,6 +110,9 @@ module axi_uart_top (/*AUTOARG*/
   input   wire                        uart_rx_i;
   output  wire                        uart_tx_o;
 
+  /* integeres and genvars */
+  genvar I;
+
   /* sync regs and wires declarations */
   wire                        axi_wren;         //..axi-transaction write enable
   wire                        axi_nwren;        //..axi-transaction write disable
@@ -141,7 +145,7 @@ module axi_uart_top (/*AUTOARG*/
   wire  [AXI_FIFO_ADDR:0]     tx_fifo_space_int;          //
   wire                        available_write_space_int;  //
   reg   [AXI_DATA_WIDTH-1:0]  uart_config_reg_int;        //
-  reg   [AXI_DATA_WIDTH-1:0]  uart_lsr_reg_int;           //
+  wire  [AXI_DATA_WIDTH-1:0]  uart_lsr_reg_int;           //
   wire                        uart_en_int;                //
   wire                        uart_parity_en_int;         //
   wire                        uart_parity_mode_int;       //
@@ -237,6 +241,7 @@ module axi_uart_top (/*AUTOARG*/
     if(~axi_aresetn_i) begin
       axi_arready       <=  1'b0;
       axi_rdata         <=  {AXI_DATA_WIDTH{1'b0}};
+      axi_rresp         <=  2'b0;
       axi_rvalid        <=  1'b0;
       axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
       rx_fifo_reset_int <=  1'b1;
@@ -248,6 +253,7 @@ module axi_uart_top (/*AUTOARG*/
         ResetReadState:        begin
           axi_arready       <=  1'b0;
           axi_rdata         <=  {AXI_DATA_WIDTH{1'b0}};
+          axi_rresp         <=  2'b0;
           axi_rvalid        <=  1'b0;
           axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
           rx_fifo_reset_int <=  1'b1;
@@ -312,7 +318,16 @@ module axi_uart_top (/*AUTOARG*/
           rx_fifo_reset_int <=  1'b0;
           read_state        <=  IdleReadState;
         end
-        default: read_state <= ResetReadState;
+        default: begin
+          axi_arready       <=  1'b0;
+          axi_rdata         <=  {AXI_DATA_WIDTH{1'b0}};
+          axi_rresp         <=  2'b0;
+          axi_rvalid        <=  1'b0;
+          axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
+          rx_fifo_reset_int <=  1'b1;
+          rx_fifo_pull_int  <=  1'b0;
+          read_state        <=  ResetReadState;
+        end
       endcase
     end
   end
@@ -340,6 +355,7 @@ module axi_uart_top (/*AUTOARG*/
       axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
       tx_fifo_reset_int     <=  1'b1;
       tx_fifo_push_int      <=  1'b0;
+      tx_fifo_data_in_int   <=  {DATA_WIDTH_UART{1'b0}};
       uart_baudrate_div_int <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
       baudrate_divisor_int  <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
       uart_config_reg_int   <=  {AXI_DATA_WIDTH{1'b0}};
@@ -356,6 +372,7 @@ module axi_uart_top (/*AUTOARG*/
           axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
           tx_fifo_reset_int     <=  1'b1;
           tx_fifo_push_int      <=  1'b0;
+          tx_fifo_data_in_int   <=  {DATA_WIDTH_UART{1'b0}};
           uart_baudrate_div_int <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
           baudrate_divisor_int  <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
           uart_config_reg_int   <=  {AXI_DATA_WIDTH{1'b0}};
@@ -453,7 +470,21 @@ module axi_uart_top (/*AUTOARG*/
           uart_baudrate_div_int <=  baudrate_divisor_int;
           write_state           <=  IdleWriteState;
         end
-        default: write_state <= ResetWriteState;
+        default: begin
+          axi_awready           <=  1'b0;
+          axi_wready            <=  1'b0;
+          axi_bvalid            <=  1'b0;
+          axi_bresp             <=  2'b0;
+          axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
+          tx_fifo_reset_int     <=  1'b1;
+          tx_fifo_push_int      <=  1'b0;
+          tx_fifo_data_in_int   <=  {DATA_WIDTH_UART{1'b0}};
+          uart_baudrate_div_int <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+          baudrate_divisor_int  <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+          uart_config_reg_int   <=  {AXI_DATA_WIDTH{1'b0}};
+          uart_irq_en_int       <=  1'b0;
+          write_state           <=  ResetWriteState;
+        end
       endcase
     end
   end
@@ -485,7 +516,7 @@ module axi_uart_top (/*AUTOARG*/
         /* tx */
         .uart_tx_o              (uart_tx_o),
         .tx_load_i              (load_tx_fifo_controller),
-        .tx_full_i              (tx_fifo_full_int),
+        //.tx_full_i              (tx_fifo_full_int),
         .tx_data_i              (data_tx_fifo_controller),
         .tx_pull_o              (pull_controller_tx_fifo)
       );
@@ -521,15 +552,26 @@ module axi_uart_top (/*AUTOARG*/
   always @ (posedge fixed_clk_i, negedge axi_aresetn_i) begin
     if(~axi_aresetn_i)    begin
       read_interrupt_o                        <=  1'b0;
-      uart_lsr_reg_int                        <=  32'h00000060; //..initial value for LSR
+      //uart_lsr_reg_int                        <=  32'h00000060; //..initial value for LSR
     end
 	 else begin
       read_interrupt_o                        <=  ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
 //      uart_lsr_reg_int                        =  32'h00000000;
-      uart_lsr_reg_int[UART_LSR_TEMT]         <=  available_write_space_int;
-      uart_lsr_reg_int[UART_LSR_DATA_READY]   <=  ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
+      //uart_lsr_reg_int[UART_LSR_TEMT]         <=  available_write_space_int;
+      //uart_lsr_reg_int[UART_LSR_DATA_READY]   <=  ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
     end
   end
+
+  generate
+    for(I = 0; I < AXI_DATA_WIDTH; I = I + 1) begin: uart_lsr_assignment_gen
+      case(I)
+        UART_LSR_THRE:        assign uart_lsr_reg_int[I] = available_write_space_int;
+        UART_LSR_TEMT:        assign uart_lsr_reg_int[I] = available_write_space_int;
+        UART_LSR_DATA_READY:  assign uart_lsr_reg_int[I] = ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
+        default:              assign uart_lsr_reg_int[I] = 1'b0;
+      endcase
+    end
+  endgenerate
 
   /* tx fifo */
   axi_internal_fifo

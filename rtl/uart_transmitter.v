@@ -167,7 +167,19 @@ module uart_transmitter
           tx_sample_valid_int <=  1'b0;
           tx_sample_reset_int <=  1'b1;
         end
-        default: state <= ResetState;
+        default: begin
+          tx_o                <=  1'b1;
+          tx_data_int         <=  {(DATA_UART){1'b0}};
+          counter_int         <=  0;
+          bitcount_int        <=  4'b0;
+          tx_sample_reset_int <=  1'b0;
+          tx_sample_data_int  <=  1'b0;
+          tx_sample_valid_int <=  1'b0;
+          tx_stop_bits_int    <=  2'b0;
+          tx_ready_o          <=  1'b0;
+          busy_o              <=  1'b1;
+          state               <=  ResetState;
+        end
       endcase
     end
   end
