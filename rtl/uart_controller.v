@@ -44,7 +44,7 @@ module uart_controller
     output  wire [DATA_UART-1:0]  rx_data_o,                  // the data packet received
     output  wire                  rx_push_o,                  // push data to the receive FIFO
     input   wire                  tx_load_i,                  // available data to load from transmit FIFO
-    input   wire                  tx_full_i,                  // transmit FIFO is full
+    //input   wire                  tx_full_i,                  // transmit FIFO is full
     input   wire [DATA_UART-1:0]  tx_data_i,                  // the data packet to transmit
     output  reg                   tx_pull_o                   // pull fro the transmit FIFO
 );
@@ -98,7 +98,12 @@ module uart_controller
             end
             tx_pull_o <= 1'b0;
           end
-          default: state <= ResetState;
+          default: begin
+            tx_data_int <=  {DATA_UART{1'b0}};
+            tx_send_int <=  1'b0;
+            tx_pull_o   <=  1'b0;
+            state       <=  ResetState;
+          end
       endcase
     end
   end

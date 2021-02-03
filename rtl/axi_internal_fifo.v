@@ -64,6 +64,7 @@ module axi_internal_fifo
   localparam PP              =  2'b11;  // push and pull
 
   /* integers, regs and wires */
+  //integer i;
   reg [INDEX_LENGTH:0]    space;                      // initialize to 5'b10000 = 16 | [4:0] = 5 bits representing up to 31
   reg [INDEX_LENGTH-1:0]  head_int;                   // head_int pointer [3:0] = 4 bits representing up to 15
   reg [INDEX_LENGTH-1:0]  tail_int;                   // tail_int pointer [3:0] = 4 bits representing up to 15
@@ -83,6 +84,9 @@ module axi_internal_fifo
       available_int <=  0;
       space         <=  FIFO_SIZE[INDEX_LENGTH:0];
       valid_int     <=  0;
+      /*for(i = 0; i < FIFO_SIZE; i = i + 1) begin
+        fifo_int[i] <= {DATA_SIZE{1'b0}};
+      end*/
     end else begin
       if(rst_i) begin
         head_int      <=  0;
@@ -117,7 +121,7 @@ module axi_internal_fifo
               available_int       <=  available_int + 1;
               space               <=  space - 1;
               valid_int[tail_int] <=  1;
-              fifo_int[tail_int]  <=  data_i;
+              //fifo_int[tail_int]  <=  data_i;
             end
           end
           PP: begin        // push and pull data
@@ -127,14 +131,14 @@ module axi_internal_fifo
                 available_int       <=  available_int + 1;
                 space               <=  space - 1;
                 valid_int[tail_int] <=  1;
-                fifo_int[tail_int]  <=  data_i;
+                //fifo_int[tail_int]  <=  data_i;
               end
               NP: begin                // available entry to push (increment tail pointer), valid entry to pull (increment head pointer)
                 head_int            <=  head_int + 1;
                 tail_int            <=  tail_int + 1;
                 valid_int[head_int] <=  0;
                 valid_int[tail_int] <=  1;
-                fifo_int[tail_int]  <=  data_i;
+                //fifo_int[tail_int]  <=  data_i;
               end
               PN: begin                // no available entry to push, no valid entry to pull -> MUST NEVER HAPPEN!
                 head_int      <=  0;
@@ -145,12 +149,30 @@ module axi_internal_fifo
               PP: begin                // no available entry to push (overwrite data), valid entry to pull -> FULL
                 head_int            <=  head_int + 1;
                 tail_int            <=  tail_int + 1;
-                fifo_int[tail_int]  <=  data_i;
+                //fifo_int[tail_int]  <=  data_i;
               end
             endcase
           end
         endcase
       end
+    end
+  end
+
+  /*
+    Always description:
+    FIFO's write access.
+  */
+  always @ (posedge clk_i) begin
+    if(push_i) begin
+      case(pull_i)
+        1'b0: begin
+          if(~valid_int[tail_int])
+            fifo_int[tail_int] <= data_i;
+        end
+        1'b1: begin
+          fifo_int[tail_int] <= data_i;
+        end
+      endcase
     end
   end
 

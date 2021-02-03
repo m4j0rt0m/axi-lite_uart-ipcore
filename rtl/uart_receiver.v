@@ -86,6 +86,7 @@ module uart_receiver
       bitcount_int      <=  4'b0;
       rx_data_int       <=  {DATA_UART{1'b0}};
       rx_stop_bits_int  <=  1'b0;
+      rx_data_o         <=  {DATA_UART{1'b0}};
       rx_valid_o        <=  1'b0;
       state             <=  ResetState;
     end
@@ -96,6 +97,7 @@ module uart_receiver
           bitcount_int      <=  4'b0;
           rx_data_int       <=  {DATA_UART{1'b0}};
           rx_stop_bits_int  <=  1'b0;
+          rx_data_o         <=  {DATA_UART{1'b0}};
           rx_valid_o        <=  1'b0;
           state             <=  IdleState;
         end
@@ -167,7 +169,15 @@ module uart_receiver
           else
             counter_int <=  counter_int + 1;
         end
-        default: state <= ResetState;
+        default: begin
+          counter_int       <=  0;
+          bitcount_int      <=  4'b0;
+          rx_data_int       <=  {DATA_UART{1'b0}};
+          rx_stop_bits_int  <=  1'b0;
+          rx_data_o         <=  {DATA_UART{1'b0}};
+          rx_valid_o        <=  1'b0;
+          state             <=  ResetState;
+        end
       endcase
     end
   end

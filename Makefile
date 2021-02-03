@@ -22,6 +22,7 @@ PRJ_INCLUDES        = $(addprefix -I, $(PRJ_DIRS))
 ### PROJECT ###
 PROJECT             = axi_uart
 TOP_MODULE          = axi_uart_top
+TOP_MODULE_FILE     = $(shell basename $(shell grep -r "module $(TOP_MODULE)" $(SOURCE_DIR) | cut -d ":" -f 1))
 
 ### LINTER ###
 LINT                = verilator
@@ -76,8 +77,8 @@ veritedium:
 	$(foreach SRC,$(PRJ_SRC),$(call veritedium-command,$(SRC)))
 	$(foreach SRC,$(TESTBENCH_SRC),$(call veritedium-command,$(SRC)))
 
-lint: $(PRJ_SRC)
-	$(LINT) $(LINT_FLAGS) $^
+lint:
+	$(LINT) $(TOP_MODULE_FILE) $(LINT_FLAGS)
 
 sim-all: $(OUTPUT_DIR)/$(TOP_MODULE_SIM).vcd $(TESTBENCH_SRC)
 	@(gtkwave $< > /dev/null 2>&1 &)
