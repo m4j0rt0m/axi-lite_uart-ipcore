@@ -1,1 +1,3 @@
-# axi-lite_uart-ipcore
+# AXI-Lite UART
+
+![](documentation/axi-uart.png)

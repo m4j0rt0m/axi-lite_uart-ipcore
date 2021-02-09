@@ -1,0 +1,537 @@
+#!/bin/bash
+#########################################################################
+#                                                                       #
+# Script Name   : spyglass_lint                                         #
+# Description   : SpyGlass linter script helper, the script handles the #
+#                 creation of the SpyGlass linting project and the      #
+#                 remote or local execution of the SpyGlass linter.     #
+# Author(s)     : Abraham J. Ruiz R.                                    #
+#                   abraham.j.ruiz.r@gmail.com; abraham.ruiz@bsc.es     #
+# Contributions : Jonnatan E. Mendoza E.                                #
+#                   jonnatan.mendoza@bsc.es                             #
+# Organization  : Barcelona Supercomputing Center (BSC)                 #
+# Version       : v2.0 - 01/02/2021                                     #
+# Notes         : If using remote linting feature, be sure to be able   #
+#                 to connect passwordless via ssh to REMOTE_SERVER.     #
+#                 Hint:                                                 #
+#                   The corresponding alias in "~/.ssh/config" can be   #
+#                   something like this (inserting the correct data):   #
+#                                                                       #
+#                   ---------------------------------                   #
+#                   | Host <REMOTE_SERVER>          |                   #
+#                   |   User <USERNAME>             |                   #
+#                   |   IdentityFile <PRIVATE_KEY>  |                   #
+#                   |   IdentitiesOnly yes          |                   #
+#                   ---------------------------------                   #
+#                                                                       #
+#########################################################################
+
+### script dir ###
+script_dir=`dirname "$0"`
+
+### variables ###
+output_dir="spyglass_output"
+report="moresimple.rpt"
+valid_option=false
+parsed_top=false
+parsed_files=false
+parsed_include=false
+parsed_license=false
+parsed_env_src=false
+parsed_waiver=false
+parsed_sv=false
+parsed_output=false
+parsed_move=false
+parsed_only_move=false
+parsed_full=false
+show_output=false
+declare -a file_list
+declare -a include_list
+retval=1
+license_retval=1
+i=0
+limit_license_attempts=20
+args=("$@")
+
+### for remote linting ###
+parsed_remote=false
+parsed_useenv=false
+ssh_retval=1
+success_lint=false
+tstamp=`date "+%s.%N"`
+remote_script="server_script.sh"
+remote_log="spyglass_lint.out"
+
+### create project function ###
+function create_project {
+  mkdir -p "${output_dir}"
+  project_file="${output_dir}/${top_module}.prj"
+  rm -rf $project_file
+  echo -e "\n---------------------------------------------------------------------------------------------------"
+  echo -e "\nSpyGlass project:\n"
+  echo "#!SPYGLASS_PROJECT_FILE" | tee $project_file
+  echo "#!VERSION 3.0" | tee -a $project_file
+  for file in ${file_list[@]}
+  do
+    echo "read_file -type verilog $file" | tee -a $project_file
+  done
+  if [ $parsed_waiver == true ]; then
+    echo "read_file -type awl ${awl_file}" | tee -a $project_file
+  fi
+  if [ $parsed_include == true ]; then
+    for include_path in ${include_list[@]}
+    do
+      echo "set_option incdir { $include_path }" | tee -a $project_file
+    done
+  fi
+  if [ $parsed_sv == true ]; then
+    echo "set_option enableSV09 yes" | tee -a $project_file
+    echo "set_option language_mode mixed" | tee -a $project_file
+  fi
+  echo "set_option top $top_module" | tee -a $project_file
+  if [ $parsed_full == true ]; then
+    echo "define_goal spyglass_lint -policy {lint} {set_parameter handle_large_bus yes} -base_goal lint/lint_rtl" | tee -a $project_file
+  else
+    echo "define_goal spyglass_lint -policy {lint} {set_parameter handle_large_bus yes; set_parameter fullpolicy yes} -base_goal lint/lint_rtl" | tee -a $project_file
+  fi
+}
+
+### run project function ###
+function run_project {
+  if [ $parsed_env_src == true ]; then
+    . ${env_source_file}
+  fi
+  if [ $parsed_license == true ]; then
+    export SNPSLMD_LICENSE_FILE=$license_file
+    export LM_LICENSE_FILE=$SNPSLMD_LICENSE_FILE
+  fi
+  export SKIP_PLATFORM_CHECK=TRUE
+
+  ### Rule: spyglass_lint ###
+  echo -e "\n---------------------------------------------------------------------------------------------------"
+  echo -e "Running SpyGlass linter for module \"$top_module\"... [ spyglass_lint rule ]"
+  echo -e "---------------------------------------------------------------------------------------------------"
+  license_attempts=0
+  while true; do
+    if [[ $show_output == true ]]; then
+      spyglass_main -batch -project $project_file -designread -goals spyglass_lint
+    else
+      spyglass_main -batch -project $project_file -designread -goals spyglass_lint > /dev/null 2>&1
+    fi
+    retval=$?
+    grep "LICENSE FAILURE NOTIFICATION" "${output_dir}/${top_module}/spyglass.out" > /dev/null 2>&1
+    license_retval=$?
+    echo -e "\n---------------------------------------------------------------------------------------------------\n"
+    if [[ $retval -eq 0 ]] && [[ $license_retval -ne 0 ]]; then
+      echo -e "Successfully finished the linting [ spyglass_lint rule ]"
+      break
+    else
+      if [[ $license_retval -eq 0 ]]; then
+        echo -e "SpyGlass license error"
+        (( license_attempts++ ))
+        if [[ $license_attempts -ge $limit_license_attempts ]]; then
+          echo -e "Limit license attempts reached"
+          break
+        else
+          echo -e "Trying again in 10 seconds... [ Attempt $license_attempts of $limit_license_attempts ]"
+          sleep 10
+        fi
+      else
+        echo -e "Error trying the SpyGlass linter [ spyglass_lint rule ]"
+        break
+        echo -e "\n---------------------------------------------------------------------------------------------------\n"
+      fi
+      echo -e "\n---------------------------------------------------------------------------------------------------\n"
+    fi
+  done
+}
+
+### run project remotely function ###
+function run_remote_project {
+  # check if it is possible the ssh connection without password prompt #
+  echo -e "\nTrying ssh key authentication..."
+  ssh -o PasswordAuthentication=no -o ConnectTimeout=4 -o BatchMode=yes ${spyglass_remote} exit &>/dev/null
+  ssh_retval=$?
+  if [[ $ssh_retval -ne 0 ]]; then
+    echo -e "\n---------------------------------------------------------------------------------------------------"
+    echo -e "\nSpyGlass server ssh connection error"
+    echo -e "Please check your ssh key authentication setup with the $spyglass_remote server"
+    echo -e "  Notes : If using remote linting feature, be sure to be able to connect passwordless via"
+    echo -e "          ssh to REMOTE_SERVER."
+    echo -e "  Hint  : The corresponding alias entry in \"~/.ssh/config\" can be something like this"
+    echo -e "          (filling with the corresponding data):\n"
+    echo -e "          ---------------------------------"
+    echo -e "          | Host <REMOTE_SERVER>          |"
+    echo -e "          |   User <USERNAME>             |"
+    echo -e "          |   IdentityFile <PRIVATE_KEY>  |"
+    echo -e "          |   IdentitiesOnly yes          |"
+    echo -e "          ---------------------------------\n"
+    echo -e "\n---------------------------------------------------------------------------------------------------\n"
+    exit 0
+  else
+    echo -e "\n---------------------------------------------------------------------------------------------------"
+    echo -e "\nSuccessfull ssh key authentication with the $spyglass_remote server."
+    echo -e "\n---------------------------------------------------------------------------------------------------"
+  fi
+  echo -e "\nSending project to remote-server temporal directory...\n"
+
+  # send project to server #
+  remote_project_dir="/tmp/${tstamp}"
+  remote_project_file="${output_dir}/${top_module}.prj"
+  ssh $spyglass_remote mkdir -p ${remote_project_dir}/rtl \
+                                ${remote_project_dir}/scripts \
+                                ${remote_project_dir}/${output_dir}
+  rsync --relative -r ${file_list[@]} ${spyglass_remote}:${remote_project_dir}
+  if [ $parsed_include == true ]; then
+    rsync --relative -r ${include_list[@]} ${spyglass_remote}:${remote_project_dir}
+  fi
+  scp $project_file ${spyglass_remote}:${remote_project_dir}/${remote_project_file}
+  if [ $parsed_waiver == true ]; then
+    scp $awl_file ${spyglass_remote}:${remote_project_dir}/${awl_file}
+  fi
+  echo -e "\n---------------------------------------------------------------------------------------------------\n"
+
+  # create execution script #
+  echo -e "Creating server execution script as $remote_script\n"
+  echo -e "ssh -T $spyglass_remote << EOF" > $remote_script
+  echo -e "export SKIP_PLATFORM_CHECK=TRUE" >> $remote_script
+  if [ $parsed_useenv == true ]; then
+    if [ $parsed_env_src == true ]; then
+      echo -e "source ${env_source_file}" >> $remote_script
+    fi
+    if [ $parsed_license == true ]; then
+      echo -e "export SNPS_LICENSE_FILE=${license_file}" >> $remote_script
+      echo -e "export SNPSLMD_LICENSE_FILE=${license_file}" >> $remote_script
+      echo -e "export LM_LICENSE_FILE=${license_file}" >> $remote_script
+    fi
+  fi
+  echo -e "cd ${remote_project_dir}" >> $remote_script
+  echo -e "spyglass_main -batch -project ${remote_project_file} -designread -goals spyglass_lint" >> $remote_script
+  echo -e "exit" >> $remote_script
+  echo -e "EOF" >> $remote_script
+  chmod +x $remote_script
+
+  # run remote project #
+  echo -e "---------------------------------------------------------------------------------------------------\n"
+  echo -e "Running SpyGlass linter for module \"$top_module\" remotely..."
+  . $remote_script | tee $remote_log
+  retval=$?
+  grep "LICENSE FAILURE NOTIFICATION" "${remote_log}" > /dev/null 2>&1
+  license_retval=$?
+  echo -e "\n---------------------------------------------------------------------------------------------------\n"
+  if [[ $retval -eq 0 ]] && [[ $license_retval -ne 0 ]]; then
+    echo -e "Successfully finished the linting"
+    echo -e "\n---------------------------------------------------------------------------------------------------\n"
+    success_lint=true
+  else
+    if [[ $license_retval -eq 0 ]]; then
+      echo -e "SpyGlass license error"
+    else
+      echo -e "Error trying the SpyGlass linter"
+    fi
+    echo -e "\n---------------------------------------------------------------------------------------------------\n"
+    success_lint=false
+  fi
+
+  # clean temporal files and move output #
+  mkdir -p "${output_dir}/${top_module}"
+  report_dir="${output_dir}/${top_module}"
+  rm -rf "${report_dir}/*"
+  scp ${spyglass_remote}:${remote_project_dir}/${output_dir}/${top_module}/consolidated_reports/${top_module}_Design_Read/${report} "${report_dir}/spyglass_design_read.rpt"
+  if [[ $success_lint == true ]]; then
+    scp ${spyglass_remote}:${remote_project_dir}/${output_dir}/${top_module}/consolidated_reports/${top_module}_spyglass_lint/${report} "${report_dir}/spyglass_lint.rpt"
+    retval=$?
+  else
+    retval=1
+  fi
+  ssh $spyglass_remote rm -rf ${remote_project_dir}
+  if [ $show_output == false ]; then
+    rm $remote_script
+    rm $remote_log
+  else
+    mv $remote_script ${report_dir}/remote_script
+    mv $remote_log ${report_dir}/remote_log
+  fi
+  if [[ $retval -eq 0 ]]; then
+    cat ${report_dir}/spyglass_lint.rpt
+  else
+    cat ${report_dir}/spyglass_design_read.rpt
+  fi
+}
+
+### move output function ###
+function move_output {
+  if [[ $parsed_only_move == true ]] || ([[ $retval -eq 0 ]] && [[ $license_retval -ne 0 ]]); then
+    mkdir -p "${output_dir}/${top_module}"
+    report_dir="${output_dir}/${top_module}"
+    mv -v dashboard.log "${report_dir}/${top_module}.dashboard.log" 2>/dev/null
+    mv -v datasheet.log "${report_dir}/${top_module}.datasheet.log" 2>/dev/null
+    mv -v goals_summary.log "${report_dir}/${top_module}.goals_summary.log" 2>/dev/null
+    cp -v "${output_dir}/${top_module}/consolidated_reports/${top_module}_Design_Read/${report}" "${output_dir}/${top_module}_design_read.rpt" 2>/dev/null
+    cp -v "${output_dir}/${top_module}/consolidated_reports/${top_module}_spyglass_lint/${report}" "${output_dir}/${top_module}_spyglass_lint.rpt" 2>/dev/null
+    echo -e "Reports are located in ${output_dir}"
+    echo -e "---------------------------------------------------------------------------------------------------\n"
+    cat ${output_dir}/${top_module}_spyglass_lint.rpt
+  else
+    mkdir -p "${output_dir}/${top_module}"
+    report_dir="${output_dir}/${top_module}"
+    mv -v dashboard.log "${report_dir}/${top_module}.dashboard.log" 2>/dev/null
+    mv -v datasheet.log "${report_dir}/${top_module}.datasheet.log" 2>/dev/null
+    mv -v goals_summary.log "${report_dir}/${top_module}.goals_summary.log" 2>/dev/null
+    cp -v "${output_dir}/${top_module}/consolidated_reports/${top_module}_Design_Read/${report}" "${output_dir}/${top_module}_design_read.rpt" 2>/dev/null
+    echo -e "FATAL failed report in ${output_dir}/${top_module}_design_read.rpt"
+    echo -e "---------------------------------------------------------------------------------------------------\n"
+    cat ${output_dir}/${top_module}_design_read.rpt
+  fi
+}
+
+### arguments parser ###
+for arg in "$@"
+do
+  # print help option
+  if [ "$arg" == "--help" ]; then
+    ./$0 --version
+    echo "Usage: spyglass_lint [OPTIONS]"
+    echo "  Options:"
+    echo "    --top       Top module"
+    echo "    --files     Source files"
+    echo "    --include   Add include path"
+    echo "    --includes  Add a list of include paths (separated by space character)"
+    echo "    --output    Output directory"
+    echo "    --remote    Run SpyGlass software in a remote server"
+    echo "    --use-env   Use SPYGLASS_ENV and SPYGLASS_BIN_DIR environment variables for both local or remote execution"
+    echo "    --full      Use full policy for the linting rules"
+    echo "    --move      Move all the reports files into Output directory"
+    echo "    --debug     Display output log information"
+    echo "    --license   License file path"
+    echo "    --env-src   Environment source file"
+    echo "    --waiver    Waiver file path"
+    echo "    --sv        Enable SystemVerilog flag"
+    echo "    --version   Display the spyglass lint helper script version"
+    echo "    --help      Display this help information"
+    exit 0
+
+  # print version option
+  elif [ "$arg" == "--version" ]; then
+    echo -e "SpyGlass linter script helper -- spyglass_lint"
+    echo -e "  Version      : v2.1"
+    echo -e "  Organization : Barcelona Supercomputing Center"
+    exit 0
+
+  # top module option
+  elif [[ "$arg" == "--top" ]]; then
+    if [[ $parsed_top == false ]]; then
+      if [[ -z ${args[$i+1]} ]] || [[ ${args[$i+1]} == "--"* ]]; then
+        echo -e "Error: Missing Top module name\n"
+        ./$0 --help
+        exit 0
+      fi
+      top_module=${args[$i+1]}
+      parsed_top=true
+    else
+      echo -e "Error: Multiple Top modules\n"
+      ./$0 --help
+      exit 0
+    fi
+
+  # source files option
+  elif [[ "$arg" == "--files" ]]; then
+    if [[ $parsed_files == false ]]; then
+      file_sweep_index=$(($i+1))
+      end_sweep_index=$#
+      found_option=false
+
+      # check if no empty file list
+      if [[ -z ${args[$file_sweep_index]} ]] || [[ ${args[$file_sweep_index]} == "--"* ]]; then
+        empty_input_files=true
+      else
+        empty_input_files=false
+      fi
+
+      # sweep through the file list argument until reached another option
+      # and create a file list
+      if [[ $empty_input_files == false ]]; then
+        while [[ $file_sweep_index -le $end_sweep_index ]] && [[ $found_option == false ]]
+        do
+          if [[ ${args[$file_sweep_index]} == "--"* ]]; then
+            found_option=true
+          else
+            file=(${args[$file_sweep_index]})
+            file_list=(${file_list[@]} $file)
+          fi
+          # increment argument pointer
+          (( file_sweep_index++ ))
+          parsed_files=true
+        done
+      fi
+    else
+      echo -e "Error: Multiple Files arguments\n"
+      ./$0 --help
+      exit 0
+    fi
+
+  # multiple includes option
+  elif [[ "$arg" == "--includes" ]]; then
+    if [[ $parsed_include == false ]]; then
+      file_sweep_index=$(($i+1))
+      end_sweep_index=$#
+      found_option=false
+
+      # check if no empty file list
+      if [[ -z ${args[$file_sweep_index]} ]] || [[ ${args[$file_sweep_index]} == "--"* ]]; then
+        empty_input_files=true
+      else
+        empty_input_files=false
+      fi
+
+      # sweep through the file list argument until reached another option
+      # and create a file list
+      if [[ $empty_input_files == false ]]; then
+        while [[ $file_sweep_index -le $end_sweep_index ]] && [[ $found_option == false ]]
+        do
+          if [[ ${args[$file_sweep_index]} == "--"* ]]; then
+            found_option=true
+          else
+            include_path=(${args[$file_sweep_index]})
+            include_list=(${include_list[@]} $include_path)
+          fi
+          # increment argument pointer
+          (( file_sweep_index++ ))
+          parsed_include=true
+        done
+      fi
+    else
+      echo -e "Error: Multiple *includes* arguments\n"
+      ./$0 --help
+      exit 0
+    fi
+
+  # include path option
+  elif [ "$arg" == "--include" ]; then
+    # check if no include path
+    if [[ -z ${args[$i+1]} ]] || [[ ${args[$i+1]} == "--"* ]]; then
+      empty_include_path=true
+    else
+      empty_include_path=false
+    fi
+
+    if [[ $empty_include_path == false ]]; then
+      include_path=(${args[$i+1]})
+      include_list=(${include_list[@]} $include_path)
+      parsed_include=true
+    fi
+
+  # remote lint option
+  elif [[ "$arg" == "--remote" ]]; then
+    if [[ $parsed_remote == false ]]; then
+      if [[ -z ${args[$i+1]} ]] || [[ ${args[$i+1]} == "--"* ]]; then
+        echo -e "Error: Missing remote server argument\n"
+        ./$0 --help
+        exit 0
+      fi
+      spyglass_remote=${args[$i+1]}
+      parsed_remote=true
+    fi
+
+  # remote lint option
+  elif [[ "$arg" == "--use-env" ]]; then
+    parsed_useenv=true
+
+  # full policy option
+  elif [[ "$arg" == "--full" ]]; then
+    parsed_full=true
+
+  # move report files
+  elif [[ "$arg" == "--move" ]]; then
+    parsed_move=true
+
+  # show log info
+  elif [[ "$arg" == "--debug" ]]; then
+    show_output=true
+
+  # license file option
+  elif [[ "$arg" == "--license" ]]; then
+    if [[ $parsed_license == false ]]; then
+      if [[ -z ${args[$i+1]} ]] || [[ ${args[$i+1]} == "--"* ]]; then
+        echo -e "Error: Missing license file path\n"
+        ./$0 --help
+        exit 0
+      fi
+      license_file=${args[$i+1]}
+      parsed_license=true
+    fi
+
+  # environment source file option
+  elif [[ "$arg" == "--env-src" ]]; then
+    if [[ $parsed_env_src == false ]]; then
+      if [[ -z ${args[$i+1]} ]] || [[ ${args[$i+1]} == "--"* ]]; then
+        echo -e "Error: Missing environment source file path\n"
+        ./$0 --help
+        exit 0
+      fi
+      env_source_file=${args[$i+1]}
+      parsed_env_src=true
+    fi
+
+  # waiver file option
+  elif [[ "$arg" == "--waiver" ]]; then
+    if [[ $parsed_waiver == false ]]; then
+      if [[ -z ${args[$i+1]} ]] || [[ ${args[$i+1]} == "--"* ]]; then
+        echo -e "Error: Missing waiver file path\n"
+        ./$0 --help
+        exit 0
+      fi
+      awl_file=${args[$i+1]}
+      parsed_waiver=true
+    fi
+
+  # enable systemverilog option
+  elif [[ "$arg" == "--sv" ]]; then
+    parsed_sv=true
+
+  # no valid input argument
+  elif [[ "$arg" == "--"* ]]; then
+    echo -e "Unrecognized option '$arg'\n"
+    ./$0 --help
+    exit 0
+
+  # output path argument
+  elif [[ "$arg" == "--output" ]]; then
+    if [[ $parsed_output == false ]]; then
+      if [[ -z ${args[$i+1]} ]] || [[ ${args[$i+1]} == "--"* ]]; then
+        echo -e "Error: Missing output path argument\n"
+        ./$0 --help
+        exit 0
+      fi
+      output_dir=${args[$i+1]}
+      parsed_output=true
+    else
+      echo -e "Error: Multiple output paths\n"
+      ./$0 --help
+      exit 0
+    fi
+
+  fi
+  # increment argument pointer
+  (( i++ ))
+done
+
+### main ###
+if [[ $parsed_top == true ]] && [[ $parsed_files == true ]] && [[ $parsed_license == true ]]; then
+  create_project
+  if [ $parsed_remote == true ]; then
+    run_remote_project
+  else
+    run_project
+    if [[ $parsed_move == true ]]; then
+      move_output
+    fi
+  fi
+elif [[ $parsed_top == true ]] && [[ $parsed_move == true ]]; then
+  parsed_only_move=true
+  move_output
+else
+  echo -e "Error: Missing arguments\n"
+  ./$0 --help
+  exit 0
+fi

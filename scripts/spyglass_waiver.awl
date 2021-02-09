@@ -1,0 +1,14 @@
+# Ignore warnings about unread bits and variables
+# W528: "A signal or variable is set but never read"
+# W240: "Following Bits of signal ... are not read"
+waive -rule { W528 W240 }
+
+# waive uncritical warnings
+waive -du {  {axi_uart_top}     }  -msg {Combinational and sequential parts of an FSM 'axi_uart_top.axi_sync_wren' described in same always block} -rule {  {STARC05-2.11.3.1}  }
+waive -du {  {axi_uart_top}     }  -msg {Combinational and sequential parts of an FSM 'axi_uart_top.axi_sync_rden' described in same always block} -rule {  {STARC05-2.11.3.1}  }
+waive -du {  {axi_uart_top}     }  -msg {Combinational and sequential parts of an FSM 'axi_uart_top.read_state' described in same always block} -rule {  {STARC05-2.11.3.1}  }
+waive -du {  {axi_uart_top}     }  -msg {Combinational and sequential parts of an FSM 'axi_uart_top.write_state' described in same always block} -rule {  {STARC05-2.11.3.1}  }
+waive -du {  {uart_controller}  }  -msg {Combinational and sequential parts of an FSM 'uart_controller.state' described in same always block} -rule {  {STARC05-2.11.3.1}  }
+waive -du {  {uart_receiver}    }  -msg {Combinational and sequential parts of an FSM 'uart_receiver.state' described in same always block} -rule {  {STARC05-2.11.3.1}  }
+waive -du {  {uart_receiver}    }  -msg {Combinational and sequential parts of an FSM 'uart_receiver.rx_stop_bits_int' described in same always block} -rule {  {STARC05-2.11.3.1}  }
+waive -du {  {uart_transmitter} }  -msg {Combinational and sequential parts of an FSM 'uart_transmitter.state' described in same always block} -rule {  {STARC05-2.11.3.1}  }

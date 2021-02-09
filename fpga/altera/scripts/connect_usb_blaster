@@ -1,0 +1,9 @@
+#!/bin/bash
+killall -9 jtagd
+jtagd
+jtagconfig
+if [[ "$1" != "continue" ]]; then
+  echo -n "Press [ENTER] to continue,...: "
+  read var_name
+fi
+echo "You can go on!...."
