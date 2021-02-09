@@ -1,0 +1,6 @@
+#!/bin/bash
+
+config_file=$1
+config_option=$2
+config_extract=$(grep -w [*] $1 | grep -w $2 | cut -d'=' -f 2 | cut -c2-)
+echo $config_extract

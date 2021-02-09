@@ -1,0 +1,6 @@
+### default lattice fpga device flags ###
+DEFAULT_LATTICE_TARGET    = ice40
+DEFAULT_LATTICE_DEVICE    = hx1k
+DEFAULT_LATTICE_PACKAGE   = tq144
+DEFAULT_LATTICE_CLOCK_MHZ = 12
+DEFAULT_LATTICE_PNR_TOOL  = nextpnr
