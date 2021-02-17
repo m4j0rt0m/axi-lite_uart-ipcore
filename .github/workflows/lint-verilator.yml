@@ -1,0 +1,16 @@
+name: lint-verilator
+
+on: [push, pull_request]
+
+jobs:
+  lint-verilator:
+    runs-on: self-hosted
+    container: m4j0rt0m/verilator:v4.108
+    steps:
+      - uses: actions/checkout@v2
+      - name: Verilator Lint Top
+        env:
+          TOP_MODULE: axi_uart_top
+          RTL_LINTER: verilator
+        run: make lint
+
