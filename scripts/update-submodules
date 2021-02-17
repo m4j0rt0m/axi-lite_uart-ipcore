@@ -1,0 +1,55 @@
+#!/bin/bash
+
+actualdir=`pwd`
+branches=`git status | grep "modified content)" | cut -d':' -f 2 | cut -c3- | cut -d' ' -f 2`
+if [[ "$branches" != "" ]]; then
+  for ibranch in $branches; do
+    echo "Updating: ${ibranch}"
+    gitbranch=`git config -f .gitmodules --get submodule.${ibranch}.branch`
+    update=true
+    cd ${ibranch}
+    status=`git status | grep "modified:" | cut -d':' -f 2 | cut -c4-`
+    while read line; do
+      if [[ "$line" != *"(new commits)"* ]]; then
+        update=false
+      fi
+    done <<< $status
+    if [[ $update == true ]]; then
+      git checkout $gitbranch
+      git pull origin $gitbranch
+      git add .
+      git commit -m "automatically update submodule commit - ${gitbranch}"
+      git push origin $gitbranch
+      echo " - Done!"
+    else
+      echo " - Cannot update automatically, do it manually: ${ibranch}"
+    fi
+    cd $actualdir
+  done
+fi
+
+gitbranch=`git branch | grep "*" | cut -d' ' -f2`
+update=false
+status=`git status | grep "modified:" | cut -d':' -f 2 | cut -c4-`
+while read line; do
+  if [[ "$line" != *"(new commits)"* ]]; then
+    echo "Missing to commit modified content: $line"
+    #update=false
+  else
+    update=true
+    line=`echo $line | cut -d' ' -f1`
+    echo "Adding: $line"
+    git add $line
+  fi
+done <<< $status
+
+if [[ $update == true ]]; then
+  echo "Updating repository's branch"
+  git checkout $gitbranch
+  git pull origin $gitbranch
+  git commit -m "automatically update commit - ${gitbranch}"
+  git push origin $gitbranch
+  echo "Done"
+else
+  echo "Cannot update automatically, do it manually"
+fi
