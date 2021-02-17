@@ -1,0 +1,69 @@
+image: ubuntu:18.04
+
+stages:
+  - lint
+  - synthesis
+
+lint:verilator:
+  image: m4j0rt0m/verilator:v4.108
+  stage: lint
+  tags:
+    - verilator
+  needs: []
+  variables:
+    TOP_MODULE: axi_uart_top
+    RTL_LINTER: verilator
+  script:
+    - make lint
+
+lint:spyglass:
+  image: m4j0rt0m/spyglass_linter:v1.0
+  stage: lint
+  tags:
+    - spyglass
+  needs: []
+  variables:
+    TOP_MODULE: axi_uart_top
+    RTL_LINTER: spyglass
+    RTL_LINTER_REMOTE: "no"
+  script:
+    - make lint
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - spyglass_output
+
+synthesis:yosys:
+  image: m4j0rt0m/icestorm:v1.0
+  stage: synthesis
+  tags:
+    - icestorm
+  needs: []
+  variables:
+    TOP_MODULE: axi_uart_top
+    RTL_SYN_TOOLS: yosys
+    RTL_SYN_USES_CLK: "yes"
+    RTL_SYN_CLK_SRC: fixed_clk_i axi_aclk_i
+    RTL_SYN_Y_TARGET: ice40
+    RTL_SYN_Y_DEVICE: hx8k
+    RTL_SYN_Y_CLK_MHZ: 12 36
+    RTL_SYN_Y_PNR_TOOL: nextpnr
+  script:
+    - make rtl-synth
+
+synthesis:quartus:
+  image: m4j0rt0m/quartus_lite:v20.1.1
+  stage: synthesis
+  tags:
+    - quartus
+  needs: []
+  variables:
+    TOP_MODULE: axi_uart_top
+    RTL_SYN_TOOLS: quartus
+    RTL_SYN_USES_CLK: "yes"
+    RTL_SYN_CLK_SRC: fixed_clk_i axi_aclk_i
+    RTL_SYN_Q_TARGET: Cyclone IV
+    RTL_SYN_Q_DEVICE: EP4CE22F17C6
+    RTL_SYN_Q_CLK_MHZ: 50 150
+  script:
+    - make rtl-synth
