@@ -1,0 +1,21 @@
+name: synth-yosys
+
+on: [push, pull_request]
+
+jobs:
+  synth-yosys:
+    runs-on: self-hosted
+    container: m4j0rt0m/icestorm:v1.0
+    steps:
+      - uses: actions/checkout@v2
+      - name: RTL Synthesis with Yosys
+        env:
+          TOP_MODULE: axi_uart_top
+          RTL_SYN_TOOLS: yosys
+          RTL_SYN_USES_CLK: yes
+          RTL_SYN_CLK_SRC: fixed_clk_i axi_aclk_i
+          RTL_SYN_Y_TARGET: ice40
+          RTL_SYN_Y_DEVICE: hx8k
+          RTL_SYN_Y_CLK_MHZ: 12 36
+          RTL_SYN_Y_PNR_TOOL: nextpnr
+        run: make rtl-synth

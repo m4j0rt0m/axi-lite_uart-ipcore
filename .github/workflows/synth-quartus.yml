@@ -1,0 +1,20 @@
+name: synth-quartus
+
+on: [push, pull_request]
+
+jobs:
+  synth-quartus:
+    runs-on: self-hosted
+    container: m4j0rt0m/quartus_lite:v20.1.1
+    steps:
+      - uses: actions/checkout@v2
+      - name: RTL Synthesis with Quartus
+        env:
+          TOP_MODULE: axi_uart_top
+          RTL_SYN_TOOLS: quartus
+          RTL_SYN_USES_CLK: yes
+          RTL_SYN_CLK_SRC: fixed_clk_i axi_aclk_i
+          RTL_SYN_Q_TARGET: Cyclone IV
+          RTL_SYN_Q_DEVICE: EP4CE22F17C6
+          RTL_SYN_Q_CLK_MHZ: 50 150
+        run: make rtl-synth
