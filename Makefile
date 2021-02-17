@@ -330,6 +330,14 @@ rm-git-db: init-repo
 	fi
 #		rm -rf .git .gitmodules;\
 
+#H# update-files        : Update files from template to the project structure
+update-files:
+	git clone $(REMOTE-URL-HTTPS) .rtl-template -b feature/update-files && \
+	cd .rtl-template && \
+	git submodule update --init --recursive && \
+	scripts/copy_files scripts/filelist $(TOP_DIR) && \
+	cd .. && rm -rf .rtl-template
+
 #H# help                : Display help
 help: Makefile
 	@echo -e "\nHelp!...(8)\n"

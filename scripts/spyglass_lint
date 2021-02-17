@@ -49,6 +49,7 @@ declare -a file_list
 declare -a include_list
 retval=1
 license_retval=1
+return_code=true
 i=0
 limit_license_attempts=20
 args=("$@")
@@ -121,6 +122,13 @@ function run_project {
     retval=$?
     grep "LICENSE FAILURE NOTIFICATION" "${output_dir}/${top_module}/spyglass.out" > /dev/null 2>&1
     license_retval=$?
+    echo "Looking for exit codes..."
+    exit_codes=`grep "Exit Code " "${output_dir}/${top_module}/spyglass.out" | cut -d ' ' -f 4`
+    while read exit_code; do
+    if [[ "$exit_code" != "0" ]]; then
+      return_code=false
+    fi
+    done <<< $exit_codes
     echo -e "\n---------------------------------------------------------------------------------------------------\n"
     if [[ $retval -eq 0 ]] && [[ $license_retval -ne 0 ]]; then
       echo -e "Successfully finished the linting [ spyglass_lint rule ]"
@@ -218,8 +226,15 @@ function run_remote_project {
   retval=$?
   grep "LICENSE FAILURE NOTIFICATION" "${remote_log}" > /dev/null 2>&1
   license_retval=$?
+  echo "Looking for exit codes..."
+  exit_codes=`grep "Exit Code " "${remote_log}" | cut -d ' ' -f 4`
+  while read exit_code; do
+    if [[ "$exit_code" != "0" ]]; then
+      return_code=false
+    fi
+  done <<< $exit_codes
   echo -e "\n---------------------------------------------------------------------------------------------------\n"
-  if [[ $retval -eq 0 ]] && [[ $license_retval -ne 0 ]]; then
+  if [[ $retval -eq 0 ]] && [[ $license_retval -ne 0 ]] && [[ $return_code == true ]]; then
     echo -e "Successfully finished the linting"
     echo -e "\n---------------------------------------------------------------------------------------------------\n"
     success_lint=true
@@ -526,6 +541,11 @@ if [[ $parsed_top == true ]] && [[ $parsed_files == true ]] && [[ $parsed_licens
     if [[ $parsed_move == true ]]; then
       move_output
     fi
+  fi
+  if [ $return_code == true ]; then
+    exit 0
+  else
+    exit 1
   fi
 elif [[ $parsed_top == true ]] && [[ $parsed_move == true ]]; then
   parsed_only_move=true
