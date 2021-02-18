@@ -46,12 +46,16 @@ module uart_controller
     input   wire                  tx_load_i,                  // available data to load from transmit FIFO
     //input   wire                  tx_full_i,                  // transmit FIFO is full
     input   wire [DATA_UART-1:0]  tx_data_i,                  // the data packet to transmit
-    output  reg                   tx_pull_o                   // pull fro the transmit FIFO
+    output  wire                  tx_pull_o                   // pull fro the transmit FIFO
 );
 
   /* regs and wires */
-  reg   [DATA_UART-1:0] tx_data_int;
-  reg                   tx_send_int;
+  wire                  uart_tx_int;
+  wire  [DATA_UART-1:0] rx_data_int;
+  wire                  rx_push_int;
+  reg                   tx_pull_int, tx_pull_int_d;
+  reg   [DATA_UART-1:0] tx_data_int, tx_data_int_d;
+  reg                   tx_send_int, tx_send_int_d;
   wire                  tx_ready_int;
   wire                  tx_busy;
 
@@ -60,51 +64,64 @@ module uart_controller
   localparam  ResetState  = 3'b000;
   localparam  IdleState   = 3'b011;
   localparam  SendState   = 3'b101;
-  reg [2:0] state;
+  reg [2:0] state, state_d;
 
   /*
     Always description:
     The FSM controlling the transmitting of the data from the transmitter FIFO to the transmitter module in order to be send through the external UART interface.
   */
-  always @ (posedge clk_i, negedge rstn_i)    begin
+  // --- fsm: comb
+  always @ (*) begin
+    tx_data_int_d = tx_data_int;
+    tx_send_int_d = tx_send_int;
+    tx_pull_int_d = tx_pull_int;
+    state_d       = state;
+    case(state)
+        ResetState: begin
+          tx_data_int_d = {DATA_UART{1'b0}};
+          tx_send_int_d = 1'b0;
+          tx_pull_int_d = 1'b0;
+          state_d       = IdleState;
+        end
+        IdleState: begin
+          if(tx_load_i & (~tx_busy)) begin
+            tx_data_int_d = tx_data_i;
+            tx_send_int_d = 1'b1;
+            tx_pull_int_d = 1'b1;
+            state_d       = SendState;
+          end
+        end
+        SendState: begin
+          if (tx_ready_int) begin
+            state_d = IdleState;
+          end
+          if(tx_busy) begin
+            tx_send_int_d = 1'b0;
+          end
+          tx_pull_int_d = 1'b0;
+        end
+        default: begin
+          tx_data_int_d = {DATA_UART{1'b0}};
+          tx_send_int_d = 1'b0;
+          tx_pull_int_d = 1'b0;
+          state_d       = ResetState;
+        end
+    endcase
+  end
+
+  // --- fsm: seq
+  always @ (posedge clk_i, negedge rstn_i) begin
     if(~rstn_i) begin
-      tx_data_int <=  {DATA_UART{1'b0}};
-      tx_send_int <=  1'b0;
-      tx_pull_o   <=  1'b0;
-      state       <=  ResetState;
+      tx_data_int <= {DATA_UART{1'b0}};
+      tx_send_int <= 1'b0;
+      tx_pull_int <= 1'b0;
+      state       <= ResetState;
     end
     else begin
-      case(state)
-          ResetState:    begin
-            tx_data_int <=  {DATA_UART{1'b0}};
-            tx_send_int <=  1'b0;
-            tx_pull_o   <=  1'b0;
-            state       <=  IdleState;
-          end
-          IdleState:    begin
-            if(tx_load_i & (~tx_busy))    begin
-              tx_data_int <=  tx_data_i;
-              tx_send_int <=  1'b1;
-              tx_pull_o   <=  1'b1;
-              state       <=  SendState;
-            end
-          end
-          SendState:    begin
-            if (tx_ready_int) begin
-              state <=  IdleState;
-            end
-            if(tx_busy) begin
-              tx_send_int <=  1'b0;
-            end
-            tx_pull_o <= 1'b0;
-          end
-          default: begin
-            tx_data_int <=  {DATA_UART{1'b0}};
-            tx_send_int <=  1'b0;
-            tx_pull_o   <=  1'b0;
-            state       <=  ResetState;
-          end
-      endcase
+      tx_data_int <= tx_data_int_d;
+      tx_send_int <= tx_send_int_d;
+      tx_pull_int <= tx_pull_int_d;
+      state       <= state_d;
     end
   end
 
@@ -122,8 +139,8 @@ module uart_controller
         .parity_bit_i (uart_parity_bit_i),
         .baud_div_i   (uart_baudrate_div_i),
         .rx_i         (uart_rx_i),
-        .rx_data_o    (rx_data_o),
-        .rx_valid_o   (rx_push_o)
+        .rx_data_o    (rx_data_int),
+        .rx_valid_o   (rx_push_int)
       );
 
   /* uart transmitter */
@@ -140,13 +157,18 @@ module uart_controller
         .parity_bit_i       (uart_parity_bit_i),
         .parity_bit_mode_i  (uart_parity_bit_mode_i),
         .baud_div_i         (uart_baudrate_div_i),
-        .tx_o               (uart_tx_o),
+        .tx_o               (uart_tx_int),
         .tx_data_i          (tx_data_int),
         .tx_send_i          (tx_send_int),
         .tx_ready_o         (tx_ready_int),
         .busy_o             (tx_busy)
       );
 
+  /* output assignments */
+  assign uart_tx_o = uart_tx_int;
+  assign rx_data_o = rx_data_int;
+  assign rx_push_o = rx_push_int;
+  assign tx_pull_o = tx_pull_int;
 
 endmodule
 

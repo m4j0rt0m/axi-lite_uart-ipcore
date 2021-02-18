@@ -114,60 +114,60 @@ module axi_uart_top (/*AUTOARG*/
   genvar I;
 
   /* sync regs and wires declarations */
-  wire                        axi_wren;         //..axi-transaction write enable
-  wire                        axi_nwren;        //..axi-transaction write disable
-  wire                        axi_rden;         //..axi-transaction read enable
-  wire                        axi_nrden;        //..axi-transaction read disable
-  wire                        axi_wrresp;       //..axi-transaction write valid response
-  wire                        axi_nwrresp;      //..axi-transaction write finished response
-  wire                        axi_rdresp;       //..axi-transaction read valid response
-  wire                        axi_nrdresp;      //..axi-transaction read finished response
-  reg                         axi_sync_wren;    //..write axi-transaction synchronizer between clock domains
-  reg                         axi_sync_rden;    //..read axi-transaction synchronizer between clock domains
+  wire                        axi_wren;                       //..axi-transaction write enable
+  wire                        axi_nwren;                      //..axi-transaction write disable
+  wire                        axi_rden;                       //..axi-transaction read enable
+  wire                        axi_nrden;                      //..axi-transaction read disable
+  wire                        axi_wrresp;                     //..axi-transaction write valid response
+  wire                        axi_nwrresp;                    //..axi-transaction write finished response
+  wire                        axi_rdresp;                     //..axi-transaction read valid response
+  wire                        axi_nrdresp;                    //..axi-transaction read finished response
+  reg                         axi_sync_wren, axi_sync_wren_d; //..write axi-transaction synchronizer between clock domains
+  reg                         axi_sync_rden, axi_sync_rden_d; //..read axi-transaction synchronizer between clock domains
 
   /* internal regs and wires declarations */
-  wire  [AXI_FIFO_ADDR:0]     rx_status_int;              //..rx status flag
-  wire  [AXI_FIFO_ADDR+3:0]   tx_status_int;              //..tx status flag
-  reg                         rx_fifo_reset_int;          //
-  wire                        push_controller_rx_fifo;    //
-  reg                         rx_fifo_pull_int;           //
-  wire  [DATA_WIDTH_UART-1:0] data_rx_controller_fifo;    //..uart->fifo
-  wire  [DATA_WIDTH_UART-1:0] rx_fifo_data_out_int;       //..fifo->axi
-  wire  [AXI_FIFO_ADDR:0]     rx_fifo_space_int;          //
-  reg                         tx_fifo_reset_int;          //
-  reg                         tx_fifo_push_int;           //
-  wire                        pull_controller_tx_fifo;    //
-  wire                        load_tx_fifo_controller;    //
-  wire                        tx_fifo_full_int;           //
-  reg   [DATA_WIDTH_UART-1:0] tx_fifo_data_in_int;        //..axi->fifo
-  wire  [DATA_WIDTH_UART-1:0] data_tx_fifo_controller;    //..fifo->uart
-  wire  [AXI_FIFO_ADDR:0]     tx_fifo_available_int;      //
-  wire  [AXI_FIFO_ADDR:0]     tx_fifo_space_int;          //
-  wire                        available_write_space_int;  //
-  reg   [AXI_DATA_WIDTH-1:0]  uart_config_reg_int;        //
-  wire  [AXI_DATA_WIDTH-1:0]  uart_lsr_reg_int;           //
-  wire                        uart_en_int;                //
-  wire                        uart_parity_en_int;         //
-  wire                        uart_parity_mode_int;       //
-  wire                        uart_stop_bits_sel_int;     //
-  wire                        uart_dlab_int;              //
-  reg   [AXI_DIV_WIDTH-1:0]   uart_baudrate_div_int;      //Initial value 115200 bps
+  wire  [AXI_FIFO_ADDR:0]     rx_status_int;                                  //..rx status flag
+  wire  [AXI_FIFO_ADDR+3:0]   tx_status_int;                                  //..tx status flag
+  reg                         rx_fifo_reset_int, rx_fifo_reset_int_d;         //
+  wire                        push_controller_rx_fifo;                        //
+  reg                         rx_fifo_pull_int, rx_fifo_pull_int_d;           //
+  wire  [DATA_WIDTH_UART-1:0] data_rx_controller_fifo;                        //..uart->fifo
+  wire  [DATA_WIDTH_UART-1:0] rx_fifo_data_out_int;                           //..fifo->axi
+  wire  [AXI_FIFO_ADDR:0]     rx_fifo_space_int;                              //
+  reg                         tx_fifo_reset_int, tx_fifo_reset_int_d;         //
+  reg                         tx_fifo_push_int, tx_fifo_push_int_d;           //
+  wire                        pull_controller_tx_fifo;                        //
+  wire                        load_tx_fifo_controller;                        //
+  wire                        tx_fifo_full_int;                               //
+  reg   [DATA_WIDTH_UART-1:0] tx_fifo_data_in_int, tx_fifo_data_in_int_d;     //..axi->fifo
+  wire  [DATA_WIDTH_UART-1:0] data_tx_fifo_controller;                        //..fifo->uart
+  wire  [AXI_FIFO_ADDR:0]     tx_fifo_available_int;                          //
+  wire  [AXI_FIFO_ADDR:0]     tx_fifo_space_int;                              //
+  wire                        available_write_space_int;                      //
+  reg   [AXI_DATA_WIDTH-1:0]  uart_config_reg_int, uart_config_reg_int_d;     //
+  wire  [AXI_DATA_WIDTH-1:0]  uart_lsr_reg_int;                               //
+  wire                        uart_en_int;                                    //
+  wire                        uart_parity_en_int;                             //
+  wire                        uart_parity_mode_int;                           //
+  wire                        uart_stop_bits_sel_int;                         //
+  wire                        uart_dlab_int;                                  //
+  reg   [AXI_DIV_WIDTH-1:0]   uart_baudrate_div_int, uart_baudrate_div_int_d; //Initial value 115200 bps
 
   /* Extra bit flag to enable/disable interrupts */
-  reg                         uart_irq_en_int;            //..
-  reg   [AXI_DIV_WIDTH-1:0]   baudrate_divisor_int;       //Initial default value configured at 115200 bps for 50 MHz
+  reg                         uart_irq_en_int, uart_irq_en_int_d;             //..
+  reg   [AXI_DIV_WIDTH-1:0]   baudrate_divisor_int, baudrate_divisor_int_d;   //Initial default value configured at 115200 bps for 50 MHz
 
   /* axi interface registers declarations */
-  reg                         axi_awready;  //..aw  channel - ready
-  reg                         axi_wready;   //..w   channel - ready
-  reg   [AXI_ID_WIDTH-1:0]    axi_bid;      //..b   channel - id
-  reg   [AXI_RESP_WIDTH-1:0]  axi_bresp;    //..b   channel - resp
-  reg                         axi_bvalid;   //..b   channel - valid
-  reg                         axi_arready;  //..ar  channel - ready
-  reg   [AXI_ID_WIDTH-1:0]    axi_rid;      //..r   channel - id
-  reg   [AXI_DATA_WIDTH-1:0]  axi_rdata;    //..r   channel - data
-  reg   [AXI_RESP_WIDTH-1:0]  axi_rresp;    //..r   channel - resp
-  reg                         axi_rvalid;   //..r   channel - valid
+  reg                         axi_awready, axi_awready_d; //..aw  channel - ready
+  reg                         axi_wready, axi_wready_d;   //..w   channel - ready
+  reg   [AXI_ID_WIDTH-1:0]    axi_bid, axi_bid_d;         //..b   channel - id
+  reg   [AXI_RESP_WIDTH-1:0]  axi_bresp, axi_bresp_d;     //..b   channel - resp
+  reg                         axi_bvalid, axi_bvalid_d;   //..b   channel - valid
+  reg                         axi_arready, axi_arready_d; //..ar  channel - ready
+  reg   [AXI_ID_WIDTH-1:0]    axi_rid, axi_rid_d;         //..r   channel - id
+  reg   [AXI_DATA_WIDTH-1:0]  axi_rdata, axi_rdata_d;     //..r   channel - data
+  reg   [AXI_RESP_WIDTH-1:0]  axi_rresp, axi_rresp_d;     //..r   channel - resp
+  reg                         axi_rvalid, axi_rvalid_d;   //..r   channel - valid
 
   /*LCR*/
   assign  uart_en_int             = 1'b1; //TODO initialize in reset and check if functional. Otherwise remove enable functionality (enable would be always on)
@@ -188,28 +188,38 @@ module axi_uart_top (/*AUTOARG*/
   assign axi_rdresp   = axi_arready;
   assign axi_nrdresp  = ~(axi_arready | axi_rvalid);
 
-  /* axi-transaction synchronizer - write */
+  /* axi-transaction synchronizer - write: comb */
+  always @ (*) begin
+    axi_sync_wren_d = axi_sync_wren;
+    case(axi_sync_wren)
+      1'b0: axi_sync_wren_d = (axi_nwren & axi_wrresp) ? 1'b1 : 1'b0;
+      1'b1: axi_sync_wren_d = (axi_nwrresp) ? 1'b0 : 1'b1;
+    endcase
+  end
+
+  /* axi-transaction synchronizer - write: seq */
   always @ (posedge axi_aclk_i, negedge axi_aresetn_i) begin
     if(~axi_aresetn_i)
       axi_sync_wren <= 1'b0;
-    else begin
-      case(axi_sync_wren)
-        1'b0: axi_sync_wren <= (axi_nwren & axi_wrresp) ? 1'b1 : 1'b0;
-        1'b1: axi_sync_wren <= (axi_nwrresp) ? 1'b0 : 1'b1;
-      endcase
-    end
+    else
+      axi_sync_wren <= axi_sync_wren_d;
   end
 
-  /* axi-transaction synchronizer - read */
+  /* axi-transaction synchronizer - read: comb */
+  always @ (*) begin
+    axi_sync_rden_d = 1'b0;
+    case(axi_sync_rden)
+      1'b0: axi_sync_rden_d = (axi_nrden & axi_rdresp) ? 1'b1 : 1'b0;
+      1'b1: axi_sync_rden_d = (axi_nrdresp) ? 1'b0 : 1'b1;
+    endcase
+  end
+
+  /* axi-transaction synchronizer - read: seq */
   always @ (posedge axi_aclk_i, negedge axi_aresetn_i) begin
     if(~axi_aresetn_i)
       axi_sync_rden <= 1'b0;
-    else begin
-      case(axi_sync_rden)
-        1'b0: axi_sync_rden <= (axi_nrden & axi_rdresp) ? 1'b1 : 1'b0;
-        1'b1: axi_sync_rden <= (axi_nrdresp) ? 1'b0 : 1'b1;
-      endcase
-    end
+    else
+      axi_sync_rden <= axi_sync_rden_d;
   end
 
   /* axi responses assignments */
@@ -231,107 +241,127 @@ module axi_uart_top (/*AUTOARG*/
   localparam  ConfigReadState = 4'b0011;  // 3
   localparam  IdleReadState   = 4'b0101;  // 5
   localparam  AckReadState    = 4'b1001;  // 9
-  reg [3:0] read_state;
+  reg [3:0] read_state, read_state_d;
 
   /*
   Always description:
   The FSM purposed to serve the read requests. The user can read the incoming through the UART data as well as the already present configuration information it needs by addressing the specific internal register.
   */
-  always @ (posedge fixed_clk_i, negedge axi_aresetn_i) begin
-    if(~axi_aresetn_i) begin
-      axi_arready       <=  1'b0;
-      axi_rdata         <=  {AXI_DATA_WIDTH{1'b0}};
-      axi_rresp         <=  2'b0;
-      axi_rvalid        <=  1'b0;
-      axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
-      rx_fifo_reset_int <=  1'b1;
-      rx_fifo_pull_int  <=  1'b0;
-      read_state        <=  ResetReadState;
-    end
-    else begin
-      case(read_state)
-        ResetReadState:        begin
-          axi_arready       <=  1'b0;
-          axi_rdata         <=  {AXI_DATA_WIDTH{1'b0}};
-          axi_rresp         <=  2'b0;
-          axi_rvalid        <=  1'b0;
-          axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
-          rx_fifo_reset_int <=  1'b1;
-          rx_fifo_pull_int  <=  1'b0;
-          read_state        <=  ConfigReadState;
-        end
-        ConfigReadState:    begin
-          axi_arready       <=  1'b0;
-          axi_rresp         <=  2'b0;
-          axi_rvalid        <=  1'b0;
-          axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
-          rx_fifo_reset_int <=  1'b1;
-          read_state        <=  IdleReadState;
-        end
-        IdleReadState:        begin
-          if(axi_rden)  begin //..read operation
-            case(axi_araddr_i[AXI_ADDR_WIDTH-1:AXI_LSB_WIDTH]) // 4 downto 2
-              UART_RBR: begin //..read rx data
-                if (uart_dlab_int == 0) begin //give access only of the specific bit is set to zero
-                  axi_arready       <=  1'b1;
-                  axi_rdata         <=  {{(AXI_DATA_WIDTH-DATA_WIDTH_UART){1'b0}},rx_fifo_data_out_int};
-                  axi_rvalid        <=  1'b1;
-                  axi_rresp         <=  2'b0;
-                  rx_fifo_pull_int  <=  1'b1;
-                  read_state        <=  AckReadState;
-                end else begin
-                  axi_arready       <=  1'b1;
-                  axi_rresp         <=  2'b0;
-                  axi_rvalid        <=  1'b1;
-                  read_state        <=  AckReadState;
-                end
+  // --- read fsm: comb
+  always @ (*) begin
+    axi_arready_d       = axi_arready;
+    axi_rdata_d         = axi_rdata;
+    axi_rresp_d         = axi_rresp;
+    axi_rvalid_d        = axi_rvalid;
+    axi_rid_d           = axi_rid;
+    rx_fifo_reset_int_d = rx_fifo_reset_int;
+    rx_fifo_pull_int_d  = rx_fifo_pull_int;
+    read_state_d        = read_state;
+    case(read_state)
+      ResetReadState: begin
+        axi_arready_d       = 1'b0;
+        axi_rdata_d         = {AXI_DATA_WIDTH{1'b0}};
+        axi_rresp_d         = 2'b0;
+        axi_rvalid_d        = 1'b0;
+        axi_rid_d           = {AXI_ID_WIDTH{1'b0}};
+        rx_fifo_reset_int_d = 1'b1;
+        rx_fifo_pull_int_d  = 1'b0;
+        read_state_d        = ConfigReadState;
+      end
+      ConfigReadState: begin
+        axi_arready_d       = 1'b0;
+        axi_rresp_d         = 2'b0;
+        axi_rvalid_d        = 1'b0;
+        axi_rid_d           = {AXI_ID_WIDTH{1'b0}};
+        rx_fifo_reset_int_d = 1'b1;
+        read_state_d        = IdleReadState;
+      end
+      IdleReadState: begin
+        if(axi_rden) begin //..read operation
+          case(axi_araddr_i[AXI_ADDR_WIDTH-1:AXI_LSB_WIDTH]) // 4 downto 2
+            UART_RBR: begin //..read rx data
+              if (uart_dlab_int == 0) begin //give access only of the specific bit is set to zero
+                axi_arready_d       = 1'b1;
+                axi_rdata_d         = {{(AXI_DATA_WIDTH-DATA_WIDTH_UART){1'b0}},rx_fifo_data_out_int};
+                axi_rvalid_d        = 1'b1;
+                axi_rresp_d         = 2'b0;
+                rx_fifo_pull_int_d  = 1'b1;
+                read_state_d        = AckReadState;
+              end else begin
+                axi_arready_d       = 1'b1;
+                axi_rresp_d         = 2'b0;
+                axi_rvalid_d        = 1'b1;
+                read_state_d        = AckReadState;
               end
-              UART_LSR:       begin
-                axi_arready   <=  1'b1;
-                axi_rdata     <=  uart_lsr_reg_int;
-                axi_rresp     <=  2'b0;
-                axi_rvalid    <=  1'b1;
-                read_state    <=  AckReadState;
-              end
-              default:    begin
-                axi_arready   <=  1'b0;
-                axi_rresp     <=  2'b0;
-                axi_rvalid    <=  1'b0;
-                read_state    <=  AckReadState;
-              end
-            endcase
-            axi_rid       <=  axi_arid_i;
-          end else begin
-            axi_arready   <=  1'b0;
-            axi_rresp     <=  2'b0;
-            axi_rvalid    <=  1'b0;
-            //axi_rid       <=  {AXI_ID_WIDTH{1'b0}};
-            read_state    <=  IdleReadState;
-          end
+            end
+            UART_LSR: begin
+              axi_arready_d   = 1'b1;
+              axi_rdata_d     = uart_lsr_reg_int;
+              axi_rresp_d     = 2'b0;
+              axi_rvalid_d    = 1'b1;
+              read_state_d    = AckReadState;
+            end
+            default: begin
+              axi_arready_d   = 1'b0;
+              axi_rresp_d     = 2'b0;
+              axi_rvalid_d    = 1'b0;
+              read_state_d    = AckReadState;
+            end
+          endcase
+          axi_rid_d       = axi_arid_i;
+        end else begin
+          axi_arready_d   = 1'b0;
+          axi_rresp_d     = 2'b0;
+          axi_rvalid_d    = 1'b0;
+          //axi_rid_d       = {AXI_ID_WIDTH{1'b0}};
+          read_state_d    = IdleReadState;
         end
-        AckReadState:    begin
-          axi_arready       <=  1'b0;
-          axi_rresp         <=  2'b0;
-          axi_rvalid        <=  1'b0;
-          axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
-          rx_fifo_pull_int  <=  1'b0;
-          rx_fifo_reset_int <=  1'b0;
-          read_state        <=  IdleReadState;
-        end
-        default: begin
-          axi_arready       <=  1'b0;
-          axi_rdata         <=  {AXI_DATA_WIDTH{1'b0}};
-          axi_rresp         <=  2'b0;
-          axi_rvalid        <=  1'b0;
-          axi_rid           <=  {AXI_ID_WIDTH{1'b0}};
-          rx_fifo_reset_int <=  1'b1;
-          rx_fifo_pull_int  <=  1'b0;
-          read_state        <=  ResetReadState;
-        end
-      endcase
-    end
+      end
+      AckReadState: begin
+        axi_arready_d       = 1'b0;
+        axi_rresp_d         = 2'b0;
+        axi_rvalid_d        = 1'b0;
+        axi_rid_d           = {AXI_ID_WIDTH{1'b0}};
+        rx_fifo_pull_int_d  = 1'b0;
+        rx_fifo_reset_int_d = 1'b0;
+        read_state_d        = IdleReadState;
+      end
+      default: begin
+        axi_arready_d       = 1'b0;
+        axi_rdata_d         = {AXI_DATA_WIDTH{1'b0}};
+        axi_rresp_d         = 2'b0;
+        axi_rvalid_d        = 1'b0;
+        axi_rid_d           = {AXI_ID_WIDTH{1'b0}};
+        rx_fifo_reset_int_d = 1'b1;
+        rx_fifo_pull_int_d  = 1'b0;
+        read_state_d        = ResetReadState;
+      end
+    endcase
   end
 
+  // --- read fsm: seq
+  always @ (posedge fixed_clk_i, negedge axi_aresetn_i) begin
+    if(~axi_aresetn_i) begin
+      axi_arready       <= 1'b0;
+      axi_rdata         <= {AXI_DATA_WIDTH{1'b0}};
+      axi_rresp         <= 2'b0;
+      axi_rvalid        <= 1'b0;
+      axi_rid           <= {AXI_ID_WIDTH{1'b0}};
+      rx_fifo_reset_int <= 1'b1;
+      rx_fifo_pull_int  <= 1'b0;
+      read_state        <= ResetReadState;
+    end
+    else begin
+      axi_arready       <= axi_arready_d;
+      axi_rdata         <= axi_rdata_d;
+      axi_rresp         <= axi_rresp_d;
+      axi_rvalid        <= axi_rvalid_d;
+      axi_rid           <= axi_rid_d;
+      rx_fifo_reset_int <= rx_fifo_reset_int_d;
+      rx_fifo_pull_int  <= rx_fifo_pull_int_d;
+      read_state        <= read_state_d;
+    end
+  end
 
   /*-----------------------------------------------------------------WRITE FSM---------------------------------------------------------------------------*/
 
@@ -339,153 +369,184 @@ module axi_uart_top (/*AUTOARG*/
   localparam  ResetWriteState = 3'b000; // 0 //
   localparam  IdleWriteState  = 3'b011; // 3 //
   localparam  AckWriteState   = 3'b101; // 5 //
-  reg [2:0] write_state;
+  reg [2:0] write_state, write_state_d;
 
   /*
   Always description:
   The FSM purposed to serve the write requests. By addressing the correct internal registers the user can define a new configuration (parity mode, # of start/stop bits e.tc)
   as well as to write data to be transmitted serially through the UART
   */
-  always @ (posedge fixed_clk_i, negedge axi_aresetn_i)    begin
+  // --- write fsm: comb
+  always @ (*) begin
+    axi_awready_d           = axi_awready;
+    axi_wready_d            = axi_wready;
+    axi_bvalid_d            = axi_bvalid;
+    axi_bresp_d             = axi_bresp;
+    axi_bid_d               = axi_bid;
+    tx_fifo_reset_int_d     = tx_fifo_reset_int;
+    tx_fifo_push_int_d      = tx_fifo_push_int;
+    tx_fifo_data_in_int_d   = tx_fifo_data_in_int;
+    uart_baudrate_div_int_d = uart_baudrate_div_int;
+    baudrate_divisor_int_d  = baudrate_divisor_int;
+    uart_config_reg_int_d   = uart_config_reg_int;
+    uart_irq_en_int_d       = uart_irq_en_int;
+    write_state_d           = write_state;
+    case(write_state)
+      ResetWriteState: begin
+        axi_awready_d           = 1'b0;
+        axi_wready_d            = 1'b0;
+        axi_bvalid_d            = 1'b0;
+        axi_bresp_d             = 2'b0;
+        axi_bid_d               = {AXI_ID_WIDTH{1'b0}};
+        tx_fifo_reset_int_d     = 1'b1;
+        tx_fifo_push_int_d      = 1'b0;
+        tx_fifo_data_in_int_d   = {DATA_WIDTH_UART{1'b0}};
+        uart_baudrate_div_int_d = UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+        baudrate_divisor_int_d  = UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+        uart_config_reg_int_d   = {AXI_DATA_WIDTH{1'b0}};
+        uart_irq_en_int_d       = 1'b0;
+        write_state_d           = IdleWriteState;
+      end
+      IdleWriteState: begin
+        if(axi_wren) begin  //..write operation
+          case(axi_awaddr_i[AXI_ADDR_WIDTH-1:AXI_LSB_WIDTH])
+            UART_THR: begin
+              if (uart_dlab_int == 0) begin
+                if(~tx_fifo_full_int) begin
+                  axi_awready_d         = 1'b1;//0;
+                  axi_wready_d          = 1'b1;//0;
+                  axi_bvalid_d          = 1'b1;
+                  axi_bresp_d           = 2'b0;
+                  tx_fifo_push_int_d    = 1'b1;
+                  tx_fifo_data_in_int_d = axi_wdata_i[DATA_WIDTH_UART-1:0];
+                  write_state_d         = AckWriteState;
+                end
+              end else begin
+                axi_awready_d         = 1'b1;
+                axi_wready_d          = 1'b1;
+                axi_bvalid_d          = 1'b1;
+                axi_bresp_d           = 2'b0;
+                write_state_d         = AckWriteState;
+              end
+            end
+            UART_IER: begin
+              if (uart_dlab_int == 0) begin //give access only of the specific bit is set to zero
+                axi_awready_d     = 1'b1;
+                axi_wready_d      = 1'b1;
+                axi_bvalid_d      = 1'b1;
+                axi_bresp_d       = 2'b0;
+                uart_irq_en_int_d = axi_wdata_i[0];
+                write_state_d     = AckWriteState;
+              end else begin
+                axi_awready_d     = 1'b1;
+                axi_wready_d      = 1'b1;
+                axi_bvalid_d      = 1'b1;
+                axi_bresp_d       = 2'b0;
+                write_state_d     = AckWriteState;
+              end
+            end
+            UART_BAUD_DIVISOR: begin
+              if (uart_dlab_int == 1) begin //give access only of the specific bit is set to one
+                axi_awready_d           = 1'b1;
+                axi_wready_d            = 1'b1;
+                axi_bvalid_d            = 1'b1;
+                axi_bresp_d             = 2'b0;
+                baudrate_divisor_int_d  = axi_wdata_i;
+                write_state_d           = AckWriteState;
+              end else begin
+                axi_awready_d           = 1'b1;
+                axi_wready_d            = 1'b1;
+                axi_bvalid_d            = 1'b1;
+                axi_bresp_d             = 2'b0;
+                write_state_d           = AckWriteState;
+              end
+            end
+            UART_LCR: begin
+              axi_awready_d         = 1'b1;
+              axi_wready_d          = 1'b1;
+              axi_bvalid_d          = 1'b1;
+              axi_bresp_d           = 2'b0;
+              uart_config_reg_int_d = axi_wdata_i;
+              write_state_d         = AckWriteState;
+            end
+            default: begin    // The case where the address is not present but we doo not want the AXI bus to hang
+              axi_awready_d   = 1'b1;
+              axi_wready_d    = 1'b1;
+              axi_bvalid_d    = 1'b1;
+              axi_bresp_d     = 2'b0;
+              write_state_d   = AckWriteState;
+            end
+          endcase
+          axi_bid_d     = axi_awid_i;
+        end else begin
+          axi_awready_d   = 1'b0;
+          axi_wready_d    = 1'b0;
+          axi_bvalid_d    = 1'b0;
+          axi_bresp_d     = 2'b0;
+          //axi_bid_d       = {AXI_ID_WIDTH{1'b0}};
+          write_state_d   = IdleWriteState;
+        end
+      end
+      AckWriteState: begin
+        axi_awready_d           = 1'b0;
+        axi_wready_d            = 1'b0;
+        axi_bvalid_d            = 1'b0;
+        axi_bresp_d             = 2'b0;
+        axi_bid_d               = {AXI_ID_WIDTH{1'b0}};
+        tx_fifo_push_int_d      = 1'b0;
+        tx_fifo_reset_int_d     = 1'b0;
+        uart_baudrate_div_int_d = baudrate_divisor_int;
+        write_state_d           = IdleWriteState;
+      end
+      default: begin
+        axi_awready_d           = 1'b0;
+        axi_wready_d            = 1'b0;
+        axi_bvalid_d            = 1'b0;
+        axi_bresp_d             = 2'b0;
+        axi_bid_d               = {AXI_ID_WIDTH{1'b0}};
+        tx_fifo_reset_int_d     = 1'b1;
+        tx_fifo_push_int_d      = 1'b0;
+        tx_fifo_data_in_int_d   = {DATA_WIDTH_UART{1'b0}};
+        uart_baudrate_div_int_d = UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+        baudrate_divisor_int_d  = UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+        uart_config_reg_int_d   = {AXI_DATA_WIDTH{1'b0}};
+        uart_irq_en_int_d       = 1'b0;
+        write_state_d           = ResetWriteState;
+      end
+    endcase
+  end
+
+  // --- write fsm: seq
+  always @ (posedge fixed_clk_i, negedge axi_aresetn_i) begin
     if(~axi_aresetn_i) begin
-      axi_awready           <=  1'b0;
-      axi_wready            <=  1'b0;
-      axi_bvalid            <=  1'b0;
-      axi_bresp             <=  2'b0;
-      axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
-      tx_fifo_reset_int     <=  1'b1;
-      tx_fifo_push_int      <=  1'b0;
-      tx_fifo_data_in_int   <=  {DATA_WIDTH_UART{1'b0}};
-      uart_baudrate_div_int <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
-      baudrate_divisor_int  <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
-      uart_config_reg_int   <=  {AXI_DATA_WIDTH{1'b0}};
-      uart_irq_en_int       <=  1'b0;
-      write_state           <=  ResetWriteState;
+      axi_awready           <= 1'b0;
+      axi_wready            <= 1'b0;
+      axi_bvalid            <= 1'b0;
+      axi_bresp             <= 2'b0;
+      axi_bid               <= {AXI_ID_WIDTH{1'b0}};
+      tx_fifo_reset_int     <= 1'b1;
+      tx_fifo_push_int      <= 1'b0;
+      tx_fifo_data_in_int   <= {DATA_WIDTH_UART{1'b0}};
+      uart_baudrate_div_int <= UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+      baudrate_divisor_int  <= UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
+      uart_config_reg_int   <= {AXI_DATA_WIDTH{1'b0}};
+      uart_irq_en_int       <= 1'b0;
+      write_state           <= ResetWriteState;
     end
     else begin
-      case(write_state)
-        ResetWriteState:        begin
-          axi_awready           <=  1'b0;
-          axi_wready            <=  1'b0;
-          axi_bvalid            <=  1'b0;
-          axi_bresp             <=  2'b0;
-          axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
-          tx_fifo_reset_int     <=  1'b1;
-          tx_fifo_push_int      <=  1'b0;
-          tx_fifo_data_in_int   <=  {DATA_WIDTH_UART{1'b0}};
-          uart_baudrate_div_int <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
-          baudrate_divisor_int  <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
-          uart_config_reg_int   <=  {AXI_DATA_WIDTH{1'b0}};
-          uart_irq_en_int       <=  1'b0;
-          write_state           <=  IdleWriteState;
-        end
-        IdleWriteState:        begin
-          if(axi_wren)  begin  //..write operation
-            case(axi_awaddr_i[AXI_ADDR_WIDTH-1:AXI_LSB_WIDTH])
-              UART_THR:               begin
-                if (uart_dlab_int == 0) begin
-                  if(~tx_fifo_full_int) begin
-                    axi_awready         <=  1'b1;//0;
-                    axi_wready          <=  1'b1;//0;
-                    axi_bvalid          <=  1'b1;
-                    axi_bresp           <=  2'b0;
-                    tx_fifo_push_int    <=  1'b1;
-                    tx_fifo_data_in_int <=  axi_wdata_i[DATA_WIDTH_UART-1:0];
-                    write_state         <=  AckWriteState;
-                  end
-                end else begin
-                  axi_awready         <=  1'b1;
-                  axi_wready          <=  1'b1;
-                  axi_bvalid          <=  1'b1;
-                  axi_bresp           <=  2'b0;
-                  write_state         <=  AckWriteState;
-                end
-              end
-              UART_IER:            begin
-                if (uart_dlab_int == 0) begin //give access only of the specific bit is set to zero
-                  axi_awready     <=  1'b1;
-                  axi_wready      <=  1'b1;
-                  axi_bvalid      <=  1'b1;
-                  axi_bresp       <=  2'b0;
-                  uart_irq_en_int <=  axi_wdata_i[0];
-                  write_state     <=  AckWriteState;
-                end else begin
-                  axi_awready     <=  1'b1;
-                  axi_wready      <=  1'b1;
-                  axi_bvalid      <=  1'b1;
-                  axi_bresp       <=  2'b0;
-                  write_state     <=  AckWriteState;
-                end
-              end
-              UART_BAUD_DIVISOR:  begin
-                if (uart_dlab_int == 1) begin //give access only of the specific bit is set to one
-                  axi_awready           <=  1'b1;
-                  axi_wready            <=  1'b1;
-                  axi_bvalid            <=  1'b1;
-                  axi_bresp             <=  2'b0;
-                  baudrate_divisor_int  <=  axi_wdata_i;
-                  write_state           <=  AckWriteState;
-                end else begin
-                  axi_awready           <=  1'b1;
-                  axi_wready            <=  1'b1;
-                  axi_bvalid            <=  1'b1;
-                  axi_bresp             <=  2'b0;
-                  write_state           <=  AckWriteState;
-                end
-              end
-              UART_LCR:            begin
-                axi_awready         <=  1'b1;
-                axi_wready          <=  1'b1;
-                axi_bvalid          <=  1'b1;
-                axi_bresp           <=  2'b0;
-                uart_config_reg_int <=  axi_wdata_i;
-                write_state         <=  AckWriteState;
-              end
-              default:    begin    // The case where the address is not present but we doo not want the AXI bus to hang
-                axi_awready   <=  1'b1;
-                axi_wready    <=  1'b1;
-                axi_bvalid    <=  1'b1;
-                axi_bresp     <=  2'b0;
-                write_state   <=  AckWriteState;
-              end
-            endcase
-            axi_bid     <=  axi_awid_i;
-          end else begin
-            axi_awready   <=  1'b0;
-            axi_wready    <=  1'b0;
-            axi_bvalid    <=  1'b0;
-            axi_bresp     <=  2'b0;
-            //axi_bid       <=  {AXI_ID_WIDTH{1'b0}};
-            write_state   <=  IdleWriteState;
-          end
-        end
-        AckWriteState:    begin
-          axi_awready           <=  1'b0;
-          axi_wready            <=  1'b0;
-          axi_bvalid            <=  1'b0;
-          axi_bresp             <=  2'b0;
-          axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
-          tx_fifo_push_int      <=  1'b0;
-          tx_fifo_reset_int     <=  1'b0;
-          uart_baudrate_div_int <=  baudrate_divisor_int;
-          write_state           <=  IdleWriteState;
-        end
-        default: begin
-          axi_awready           <=  1'b0;
-          axi_wready            <=  1'b0;
-          axi_bvalid            <=  1'b0;
-          axi_bresp             <=  2'b0;
-          axi_bid               <=  {AXI_ID_WIDTH{1'b0}};
-          tx_fifo_reset_int     <=  1'b1;
-          tx_fifo_push_int      <=  1'b0;
-          tx_fifo_data_in_int   <=  {DATA_WIDTH_UART{1'b0}};
-          uart_baudrate_div_int <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
-          baudrate_divisor_int  <=  UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
-          uart_config_reg_int   <=  {AXI_DATA_WIDTH{1'b0}};
-          uart_irq_en_int       <=  1'b0;
-          write_state           <=  ResetWriteState;
-        end
-      endcase
+      axi_awready           <= axi_awready_d;
+      axi_wready            <= axi_wready_d;
+      axi_bvalid            <= axi_bvalid_d;
+      axi_bresp             <= axi_bresp_d;
+      axi_bid               <= axi_bid_d;
+      tx_fifo_reset_int     <= tx_fifo_reset_int_d;
+      tx_fifo_push_int      <= tx_fifo_push_int_d;
+      tx_fifo_data_in_int   <= tx_fifo_data_in_int_d;
+      uart_baudrate_div_int <= uart_baudrate_div_int_d;
+      baudrate_divisor_int  <= baudrate_divisor_int_d;
+      uart_config_reg_int   <= uart_config_reg_int_d;
+      uart_irq_en_int       <= uart_irq_en_int_d;
+      write_state           <= write_state_d;
     end
   end
 
@@ -550,15 +611,15 @@ module axi_uart_top (/*AUTOARG*/
   to notify the core that there are data to be read.
   */
   always @ (posedge fixed_clk_i, negedge axi_aresetn_i) begin
-    if(~axi_aresetn_i)    begin
-      read_interrupt_o                        <=  1'b0;
-      //uart_lsr_reg_int                        <=  32'h00000060; //..initial value for LSR
+    if(~axi_aresetn_i) begin
+      read_interrupt_o                        <= 1'b0;
+      //uart_lsr_reg_int                        <= 32'h00000060; //..initial value for LSR
     end
 	 else begin
-      read_interrupt_o                        <=  ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
-//      uart_lsr_reg_int                        =  32'h00000000;
-      //uart_lsr_reg_int[UART_LSR_TEMT]         <=  available_write_space_int;
-      //uart_lsr_reg_int[UART_LSR_DATA_READY]   <=  ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
+      read_interrupt_o                        <= ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
+//      uart_lsr_reg_int                        = 32'h00000000;
+      //uart_lsr_reg_int[UART_LSR_TEMT]         <= available_write_space_int;
+      //uart_lsr_reg_int[UART_LSR_DATA_READY]   <= ~rx_fifo_space_int[AXI_FIFO_ADDR] & uart_irq_en_int ;
     end
   end
 

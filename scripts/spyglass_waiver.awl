@@ -12,3 +12,8 @@
 #waive -du {  {uart_receiver}    }  -msg {Combinational and sequential parts of an FSM 'uart_receiver.state' described in same always block} -rule {  {STARC05-2.11.3.1}  }
 #waive -du {  {uart_receiver}    }  -msg {Combinational and sequential parts of an FSM 'uart_receiver.rx_stop_bits_int' described in same always block} -rule {  {STARC05-2.11.3.1}  }
 #waive -du {  {uart_transmitter} }  -msg {Combinational and sequential parts of an FSM 'uart_transmitter.state' described in same always block} -rule {  {STARC05-2.11.3.1}  }
+
+waive -du {  {axi_uart_top}  }  -msg { Input 'axi_rready_i' declared but not read.[Hierarchy: ':axi_uart_top']         }    -rule { {W240} }
+waive -du {  {axi_uart_top}  }  -msg { Input 'axi_wstrb_i[3:0]' declared but not read.[Hierarchy: ':axi_uart_top']     }    -rule { {W240} }
+waive -du {  {axi_uart_top}  }  -msg { Input 'axi_bready_i' declared but not read.[Hierarchy: ':axi_uart_top']         }    -rule { {W240} }
+waive -du {  {axi_uart_top}  }  -msg { Variable 'tx_fifo_space_int[5:0]' set but not read.[Hierarchy: ':axi_uart_top'] }    -rule { {W528} }
