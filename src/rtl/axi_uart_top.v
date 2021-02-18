@@ -378,19 +378,19 @@ module axi_uart_top (/*AUTOARG*/
   */
   // --- write fsm: comb
   always @ (*) begin
-    axi_awready_d           = 1'b0;
-    axi_wready_d            = 1'b0;
-    axi_bvalid_d            = 1'b0;
-    axi_bresp_d             = 2'b0;
-    axi_bid_d               = {AXI_ID_WIDTH{1'b0}};
-    tx_fifo_reset_int_d     = 1'b1;
-    tx_fifo_push_int_d      = 1'b0;
-    tx_fifo_data_in_int_d   = {DATA_WIDTH_UART{1'b0}};
-    uart_baudrate_div_int_d = UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
-    baudrate_divisor_int_d  = UART_BAUDRATE_DIV_INIT[AXI_DIV_WIDTH-1:0];
-    uart_config_reg_int_d   = {AXI_DATA_WIDTH{1'b0}};
-    uart_irq_en_int_d       = 1'b0;
-    write_state_d           = ResetWriteState;
+    axi_awready_d           = axi_awready;
+    axi_wready_d            = axi_wready;
+    axi_bvalid_d            = axi_bvalid;
+    axi_bresp_d             = axi_bresp;
+    axi_bid_d               = axi_bid;
+    tx_fifo_reset_int_d     = tx_fifo_reset_int;
+    tx_fifo_push_int_d      = tx_fifo_push_int;
+    tx_fifo_data_in_int_d   = tx_fifo_data_in_int;
+    uart_baudrate_div_int_d = uart_baudrate_div_int;
+    baudrate_divisor_int_d  = baudrate_divisor_int;
+    uart_config_reg_int_d   = uart_config_reg_int;
+    uart_irq_en_int_d       = uart_irq_en_int;
+    write_state_d           = write_state;
     case(write_state)
       ResetWriteState: begin
         axi_awready_d           = 1'b0;
