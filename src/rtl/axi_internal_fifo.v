@@ -180,7 +180,7 @@ module axi_internal_fifo
     Always description:
     The data output by the fifo
   */
-  assign data_o = fifo_int[head_int];
+  assign data_o = {DATA_SIZE{valid_int[head_int]}} & fifo_int[head_int];
 
   /*
     "STATUS" flag generate (NOTE: There should be a better way to generate this..)
