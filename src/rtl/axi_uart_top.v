@@ -52,7 +52,7 @@ module axi_uart_top (/*AUTOARG*/
   localparam  AXI_FIFO_ADDR   = $clog2(AXI_FIFO_DEPTH);
   localparam  AXI_BYTE_NUM    = AXI_DATA_WIDTH/BYTE;
   localparam  AXI_LSB_WIDTH   = $clog2(AXI_BYTE_NUM);
-  localparam  DEADLOCK_LIMIT  = 15;
+  localparam  DEADLOCK_LIMIT  = `_AXI_UART_DEADLOCK_;
   localparam  DEADLOCK_WIDTH  = $clog2(DEADLOCK_LIMIT);
 
   /* axi-uart parameters */

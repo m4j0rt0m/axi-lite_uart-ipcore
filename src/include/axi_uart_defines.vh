@@ -28,4 +28,6 @@
   `define _AXI_UART_RESP_WIDTH_ 2
   `define _AXI_UART_ID_WIDTH_   12
 
+  `define _AXI_UART_DEADLOCK_   2**20
+
   `endif
