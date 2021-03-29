@@ -120,20 +120,19 @@ rtl-synth:
 	if [[ "$(RTL_SYN_TOOLS)" == "" ]]; then\
 		echo -e "$(_error_)[ERROR] No defined RTL synthesis tool! Define \"RTL_SYN_TOOLS\" environment variable or define it in the \"project.config\" file."$(_reset_);\
 	else\
-		echo -e "$(_segment_)\n [+] RTL Synthesis Tools:";\
-		for stool in $(RTL_SYN_TOOLS);\
+		stool_list=($(RTL_SYN_TOOLS));\
+		for sidx in `seq 0 $$(($${#stool_list[@]}-1))`;\
 		do\
-			echo "  |-> $${stool}";\
-		done;\
-		echo -e "$(_reset_)";\
-		for stool in $(RTL_SYN_TOOLS);\
-		do\
+			stool=$${stool_list[$$sidx]};\
+			$(MAKE) check-dir-env RTL_ENV_FEATURE=synthesis RTL_ENV_SUBFEATURE=$${stool};\
 			if [[ "$(TOP_MODULE)" == "" ]]; then\
 				echo -e "$(_error_)[ERROR] No defined top module!$(_reset_)";\
 			else\
 				echo -e "$(_info_)\n[INFO] Running $${stool} synthesis tool$(_reset_)";\
-				for tmodule in $(TOP_MODULE);\
+				tmodule_list=($(TOP_MODULE));\
+				for tidx in `seq 0 $$(($${#tmodule_list[@]}-1))`;\
 				do\
+					tmodule=$${tmodule_list[$$tidx]};\
 					echo -e "$(_flag_)\n [*] Synthesis Top Module : $${tmodule}\n$(_reset_)";\
 					$(MAKE) -C $(SYNTHESIS_DIR)/$${stool} rtl-synth\
 						TOP_MODULE=$${tmodule}\
@@ -153,14 +152,19 @@ rtl-sim:
 	if [[ "$(SIM_TOOL)" == "" ]]; then\
 		echo -e "$(_error_)[ERROR] No defined RTL simulation tool! Define \"SIM_TOOL\" environment variable or define it in the \"project.config\" file.$(_reset_)";\
 	else\
-		for stool in $(SIM_TOOL);\
+		stool_list=($(SIM_TOOL));\
+		for sidx in `seq 0 $$(($${#stool_list[@]}-1))`;\
 		do\
+			stool=$${stool_list[$$sidx]};\
+			$(MAKE) check-dir-env RTL_ENV_FEATURE=simulation;\
 			if [[ "$(SIM_MODULES)" == "" ]]; then\
 				echo -e "$(_error_)[ERROR] No defined simulation top module!$(_reset_)";\
 			else\
 				echo -e "$(_info_)[INFO] Simulation with $${stool} tool\n$(_reset_)";\
-				for smodule in $(SIM_MODULES);\
+				smodule_list=($(SIM_MODULES));\
+				for sidx in `seq 0 $$(($${#smodule_list[@]}-1))`;\
 				do\
+					smodule=$${smodule_list[$$sidx]};\
 					echo -e "$(_flag_)\n [*] Simulating Top Module : $${smodule}\n$(_reset_)";\
 					$(MAKE) -C $(SIMULATION_DIR) sim\
 						SIM_TOP_MODULE=$${smodule}\
@@ -180,127 +184,105 @@ rtl-sim:
 #H# fpga-test           : Run the FPGA test
 fpga-test:
 	@echo -e "$(_flag_)\n[INFO] FPGA Test$(_reset_)";\
-	if [[ "$(FPGA_SYNTH_ALTERA)" != "yes" ]] && [[ "$(FPGA_SYNTH_LATTICE)" != "yes" ]]; then\
+	if [[ "$(FPGA_TEST)" == "" ]]; then\
 		echo -e "$(_error_)[ERROR] No defined FPGA test! Define it in the \"project.config\" file.$(_reset_)";\
 	else\
-		if [[ "$(FPGA_SYNTH_ALTERA)" == "yes" ]]; then\
-			echo -e "$(_flag_)\n [*] Running compilation flow for Altera FPGA";\
-			echo "  |-> Target     : $(ALTERA_TARGET)";\
-			echo "  |-> Device     : $(ALTERA_DEVICE)";\
+		ftest_list=($(FPGA_TEST));\
+		for fidx in `seq 0 $$(($${#ftest_list[@]}-1))`;\
+		do\
+			ftest=$${ftest_list[$$fidx]};\
+			$(MAKE) check-dir-env RTL_ENV_FEATURE=fpga RTL_ENV_SUBFEATURE=$${ftest};\
+			fpga_target=$${ftest^^}_TARGET;\
+			fpga_device=$${ftest^^}_DEVICE;\
+			echo -e "$(_flag_)\n [*] Running compilation flow - $${ftest^}";\
+			echo -e "  |-> Target     : $${!fpga_target}";\
+			echo -e "  |-> Device     : $${!fpga_device}";\
 			echo -e "  |-> Top Module : $(FPGA_TOP_MODULE)\n$(_reset_)";\
-			$(MAKE) -C $(FPGA_TEST_DIR)/altera altera-project\
+			$(MAKE) -C $(FPGA_TEST_DIR)/$${ftest} $${ftest}-project\
 			  EXT_VERILOG_SRC="$(VERILOG_SRC)"\
 			  EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
 			  EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
 			  EXT_MEM_SRC="$(MEM_SRC)"\
 			  EXT_RTL_PATHS="$(RTL_PATHS)";\
-		fi;\
-		if [[ "$(FPGA_SYNTH_LATTICE)" == "yes" ]]; then\
-			echo -e "$(_flag_)\n [*] Running compilation flow for Lattice FPGA";\
-			echo "  |-> Target     : $(LATTICE_TARGET)";\
-			echo "  |-> Device     : $(LATTICE_DEVICE)";\
-			echo -e "  |-> Top Module : $(FPGA_TOP_MODULE)\n$(_reset_)";\
-			$(MAKE) -C $(FPGA_TEST_DIR)/lattice lattice-project\
-			  EXT_VERILOG_SRC="$(VERILOG_SRC)"\
-			  EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
-			  EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
-			  EXT_MEM_SRC="$(MEM_SRC)"\
-			  EXT_RTL_PATHS="$(RTL_PATHS)";\
-		fi;\
+		done;\
 	fi
 
 #H# fpga-rtl-sim        : Run FPGA Test RTL simulation
 fpga-rtl-sim:
-	@echo -e "$(_info_)\n[INFO] RTL Simulation\n$(_reset_)";\
-	if [[ "$(FPGA_SIM_ALTERA)" != "yes" ]] && [[ "$(FPGA_SIM_LATTICE)" != "yes" ]]; then\
-		echo -e "$(_error_)[ERROR] No defined FPGA rtl simulation! Define it in the \"project.config\" file.$(_reset_)";\
+	@echo -e "$(_info_)\n[INFO] FPGA Test Simulation\n$(_reset_)";\
+	if [[ "$(FPGA_SIM_TEST)" == "" ]]; then\
+		echo -e "$(_error_)[ERROR] No defined FPGA test simulation target! Define it in the \"project.config\" file.$(_reset_)";\
+	elif [[ "$(FPGA_SIM_TOOL)" == "" ]]; then\
+		echo -e "$(_error_)[ERROR] No defined simulation tool for the FPGA test! Define it in the \"project.config\" file.$(_reset_)";\
 	else\
-		if [[ "$(FPGA_SIM_ALTERA)" == "yes" ]]; then\
-			if [[ "$(SIM_ALTERA_MODULES)" == "" ]]; then\
-				echo -e "$(_error_)[ERROR] No defined simulation top module!$(_reset_)";\
-			elif [[ "$(SIM_ALTERA_TOOL)" == "" ]]; then\
-				echo -e "$(_error_)[ERROR] No defined simulation tool for Altera FPGA test! Define it in the \"project.config\" file.$(_reset_)";\
-			else\
-				$(MAKE) -C $(FPGA_TEST_DIR)/altera fpga-rtl-sim\
-					SIM_MODULES="$(SIM_ALTERA_MODULES)"\
-					SIM_TOOL="$(SIM_ALTERA_TOOL)"\
-					SIM_CREATE_VCD=$(SIM_ALTERA_CREATE_VCD)\
-					SIM_OPEN_WAVE=$(SIM_ALTERA_OPEN_WAVE)\
+		fsim_list=($(FPGA_SIM_TEST));\
+		stool_list=($(FPGA_SIM_TOOL));\
+		for fidx in `seq 0 $$(($${#fsim_list[@]}-1))`;\
+		do\
+			fsim=$${fsim_list[$$fidx]};\
+			$(MAKE) check-dir-env RTL_ENV_FEATURE=fpga RTL_ENV_SUBFEATURE=$${fsim};\
+			fsim_modules=FPGA_SIM_MODULES_$${fsim^^};\
+			for sidx in `seq 0 $$(($${#stool_list[@]}-1))`;\
+			do\
+				stool=$${stool_list[$$sidx]};\
+				$(MAKE) -C $(FPGA_TEST_DIR)/$${fsim} fpga-rtl-sim\
+					FPGA_SIM_MODULES="$${!fsim_modules}"\
+					SIM_TOOL="$${stool}"\
+					SIM_CREATE_VCD=$(FPGA_SIM_CREATE_VCD)\
+					SIM_OPEN_WAVE=$(FPGA_SIM_OPEN_WAVE)\
 					EXT_VERILOG_SRC="$(VERILOG_SRC)"\
 					EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
 					EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
 					EXT_MEM_SRC="$(MEM_SRC)"\
 					EXT_RTL_PATHS="$(RTL_PATHS)";\
-			fi;\
-		fi;\
-		if [[ "$(FPGA_SIM_LATTICE)" == "yes" ]]; then\
-			if [[ "$(SIM_LATTICE_MODULES)" == "" ]]; then\
-				echo -e "$(_error_)[ERROR] No defined simulation top module!$(_reset_)";\
-			elif [[ "$(SIM_LATTICE_TOOL)" == "" ]]; then\
-				echo -e "$(_error_)[ERROR] No defined simulation tool for Lattice FPGA test! Define it in the \"project.config\" file.$(_reset_)";\
-			else\
-				$(MAKE) -C $(FPGA_TEST_DIR)/lattice fpga-rtl-sim\
-					SIM_MODULES="$(SIM_LATTICE_MODULES)"\
-					SIM_TOOL="$(SIM_LATTICE_TOOL)"\
-					SIM_CREATE_VCD=$(SIM_LATTICE_CREATE_VCD)\
-					SIM_OPEN_WAVE=$(SIM_LATTICE_OPEN_WAVE)\
-					EXT_VERILOG_SRC="$(VERILOG_SRC)"\
-					EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
-					EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
-					EXT_MEM_SRC="$(MEM_SRC)"\
-					EXT_RTL_PATHS="$(RTL_PATHS)";\
-			fi;\
-		fi;\
+			done;\
+		done;\
 	fi
 
 #H# fpga-flash          : Flash FPGA bitstream
 fpga-flash:
-	@if [[ "$(FPGA_SYNTH_ALTERA)" != "yes" ]] && [[ "$(FPGA_SYNTH_LATTICE)" != "yes" ]]; then\
+	@if [[ "$(FPGA_TEST)" == "" ]]; then\
 		echo -e "$(_error_)\n[ERROR] No defined FPGA test! Define it in the \"project.config\" file.$(_reset_)";\
 	else\
-		if [[ "$(FPGA_SYNTH_ALTERA)" == "yes" ]]; then\
-			$(MAKE) -C $(FPGA_TEST_DIR)/altera altera-flash-fpga\
-				EXT_VERILOG_SRC="$(VERILOG_SRC)"\
-				EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
-				EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
-				EXT_MEM_SRC="$(MEM_SRC)"\
-				EXT_RTL_PATHS="$(RTL_PATHS)";\
-		fi;\
-		if [[ "$(FPGA_SYNTH_LATTICE)" == "yes" ]]; then\
-			$(MAKE) -C $(FPGA_TEST_DIR)/lattice lattice-flash-fpga\
-				EXT_VERILOG_SRC="$(VERILOG_SRC)"\
-				EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
-				EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
-				EXT_MEM_SRC="$(MEM_SRC)"\
-				EXT_RTL_PATHS="$(RTL_PATHS)";\
-		fi;\
+		ftest_list=($(FPGA_TEST));\
+		for fidx in `seq 0 $$(($${#ftest_list[@]}-1))`;\
+		do\
+			ftest=$${ftest_list[$$fidx]};\
+			$(MAKE) check-dir-env RTL_ENV_FEATURE=fpga RTL_ENV_SUBFEATURE=$${ftest};\
+			fpga_target=$${ftest^^}_TARGET;\
+			fpga_device=$${ftest^^}_DEVICE;\
+			echo -e "$(_flag_)\n [*] Running flash FPGA job - $${ftest^}";\
+			echo -e "  |-> Target     : $${!fpga_target}";\
+			echo -e "  |-> Device     : $${!fpga_device}";\
+			echo -e "  |-> Top Module : $(FPGA_TOP_MODULE)\n$(_reset_)";\
+			$(MAKE) -C $(FPGA_TEST_DIR)/$${ftest} $${ftest}-flash-fpga\
+			  EXT_VERILOG_SRC="$(VERILOG_SRC)"\
+			  EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
+			  EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
+			  EXT_MEM_SRC="$(MEM_SRC)"\
+			  EXT_RTL_PATHS="$(RTL_PATHS)";\
+		done;\
 	fi
 
 #H# lint-fpga           : Run the verilator linter for the RTL code used in the FPGA test
 lint-fpga-test:
-	@if [[ "$(FPGA_SYNTH_ALTERA)" != "yes" ]] && [[ "$(FPGA_SYNTH_LATTICE)" != "yes" ]]; then\
+	@if [[ "$(FPGA_TEST)" == "" ]]; then\
 		echo -e "$(_error_)[ERROR] No defined FPGA test! Define it in the \"project.config\" file.$(_reset_)";\
 	else\
-		if [[ "$(FPGA_SYNTH_ALTERA)" == "yes" ]]; then\
-			echo -e "$(_flag_)\n [*] Running linter for Altera FPGA test";\
+		ftest_list=($(FPGA_TEST));\
+		for fidx in `seq 0 $$(($${#ftest_list[@]}-1))`;\
+		do\
+			ftest=$${ftest_list[$$fidx]};\
+			$(MAKE) check-dir-env RTL_ENV_FEATURE=fpga RTL_ENV_SUBFEATURE=$${ftest};\
+			echo -e "$(_flag_)\n [*] Running linter for $${ftest^} FPGA test";\
 			echo -e "  |-> Top Module : $(FPGA_TOP_MODULE)\n$(_reset_)";\
-			$(MAKE) -C $(FPGA_TEST_DIR)/altera lint\
+			$(MAKE) -C $(FPGA_TEST_DIR)/$${ftest} lint\
 			  EXT_VERILOG_SRC="$(VERILOG_SRC)"\
 			  EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
 			  EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
 			  EXT_MEM_SRC="$(MEM_SRC)"\
 			  EXT_RTL_PATHS="$(RTL_PATHS)";\
-		fi;\
-		if [[ "$(FPGA_SYNTH_LATTICE)" == "yes" ]]; then\
-			echo -e "$(_flag_)\n [*] Running linter for Lattice FPGA test";\
-			echo -e "  |-> Top Module : $(FPGA_TOP_MODULE)\n$(_reset_)";\
-			$(MAKE) -C $(FPGA_TEST_DIR)/lattice lint\
-			  EXT_VERILOG_SRC="$(VERILOG_SRC)"\
-			  EXT_VERILOG_HEADERS="$(VERILOG_HEADERS)"\
-			  EXT_PACKAGE_SRC="$(PACKAGE_SRC)"\
-			  EXT_MEM_SRC="$(MEM_SRC)"\
-			  EXT_RTL_PATHS="$(RTL_PATHS)";\
-		fi;\
+		done;\
 	fi
 
 #H# clean               : Clean the build directory
@@ -309,11 +291,38 @@ clean: del-bak
 
 #H# clean-all           : Clean all the build directories
 clean-all: clean
-	$(MAKE) -C $(SYNTHESIS_DIR)/quartus clean
-	$(MAKE) -C $(SYNTHESIS_DIR)/yosys clean
-	$(MAKE) -C $(FPGA_TEST_DIR)/altera clean
-	$(MAKE) -C $(FPGA_TEST_DIR)/lattice clean
-	$(MAKE) -C $(SIMULATION_DIR) clean
+	@if [ -d $(SIMULATION_DIR) ]; then $(MAKE) -C $(SIMULATION_DIR) clean; fi
+	@syn_tool_list=($(SUPPORTED_SYNTHESIS));\
+	for sidx in `seq 0 $$(($${#syn_tool_list[@]}-1))`;\
+	do\
+		stool=$${syn_tool_list[$$sidx]};\
+		if [ -d $(SYNTHESIS_DIR)/$${stool} ]; then $(MAKE) -C $(SYNTHESIS_DIR)/$${stool} clean; fi;\
+	done
+	@fpga_test_list=($(SUPPORTED_FPGA_TEST));\
+	for fidx in `seq 0 $$(($${#fpga_test_list[@]}-1))`;\
+	do\
+		ftest=$${fpga_test_list[$$fidx]};\
+		if [ -d $(FPGA_TEST_DIR)/$${ftest} ]; then $(MAKE) -C $(FPGA_TEST_DIR)/$${ftest} clean; fi;\
+		if [ -d $(FPGA_TEST_DIR)/$${ftest}/simulation ]; then $(MAKE) -C $(FPGA_TEST_DIR)/$${ftest}/simulation clean; fi;\
+	done
+
+#H# env-dirs            : Create features environment directories (synthesis, fpga-test, simulation, etc.)
+env-dirs:
+	@if [[ "$(RTL_SYN_TOOLS)" != "" ]]; then\
+		for stool in $(RTL_SYN_TOOLS);\
+		do\
+			$(MAKE) check-dir-env RTL_ENV_FEATURE=synthesis RTL_ENV_SUBFEATURE=$${stool};\
+		done;\
+	fi
+	@if [[ "$(SIM_TOOL)" != "" ]]; then\
+		$(MAKE) check-dir-env RTL_ENV_FEATURE=simulation;\
+	fi
+	@if [[ "$(FPGA_TEST)" != "" ]]; then\
+		for ftest in $(FPGA_TEST);\
+		do\
+			$(MAKE) check-dir-env RTL_ENV_FEATURE=fpga RTL_ENV_SUBFEATURE=$${ftest};\
+		done;\
+	fi
 
 #H# init-repo           : Initialize repository (submodules)
 init-repo:
@@ -330,18 +339,10 @@ rm-git-db: init-repo
 	fi
 #		rm -rf .git .gitmodules;\
 
-#H# update-files        : Update files from template to the project structure
-update-files:
-	git clone $(REMOTE-URL-HTTPS) .rtl-template -b feature/update-files && \
-	cd .rtl-template && \
-	git submodule update --init --recursive && \
-	scripts/copy_files scripts/filelist $(TOP_DIR) && \
-	cd .. && rm -rf .rtl-template
-
 #H# help                : Display help
-help: Makefile
+help: Makefile scripts/misc.mk
 	@echo -e "\nHelp!...(8)\n"
-	@sed -n 's/^#H#//p' $<
+	@sed -n 's/^#H#//p' $^
 	@echo ""
 
 #H# help-all            : Display complete rules help

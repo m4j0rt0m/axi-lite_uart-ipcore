@@ -1,0 +1,12 @@
+#!/bin/bash
+
+feature_git=$1
+feature_dir=$2
+temp_dir=.tmp-repo-template
+
+if [[ ! -d $2 ]]; then
+  mkdir -p $2
+  git clone $1 --recurse-submodules $temp_dir
+  rsync -av --progress $temp_dir/ $2 --exclude .git --exclude .gitmodules
+  rm -rf $temp_dir
+fi

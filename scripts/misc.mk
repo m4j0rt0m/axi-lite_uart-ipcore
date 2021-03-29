@@ -18,6 +18,10 @@ export _flag_
 export _error_
 export _segment_
 
+### environment directory ###
+RTL_ENV_FEATURE_GIT:=$(subst .git,$(if $(RTL_ENV_SUBFEATURE),-$(RTL_ENV_FEATURE)-$(RTL_ENV_SUBFEATURE).git,-$(RTL_ENV_FEATURE).git),$(REMOTE-URL-HTTPS))
+RTL_ENV_FEATURE_DIR:=$(if $(RTL_ENV_SUBFEATURE),$(RTL_ENV_FEATURE)/$(RTL_ENV_SUBFEATURE),$(RTL_ENV_FEATURE))
+
 #H# print-config        : Display project configuration
 print-config: check-config
 	@echo -e "$(_info_)\n[INFO] Project Configuration File$(_reset_)";\
@@ -80,6 +84,12 @@ print-config: check-config
 #H# print-rtl-srcs      : Print RTL sources
 print-rtl-srcs:
 	$(call print-srcs-command)
+
+#H# check-dir-env       : Check if exists, if not, create the RTL env directory <RTL_ENV_FEATURE> <RTL_ENV_SUBFEATURE>
+check-dir-env:
+	@if [ ! -d $(RTL_ENV_FEATURE_DIR) ]; then\
+		$(SCRIPTS_DIR)/pull-feature-repo-files $(RTL_ENV_FEATURE_GIT) $(RTL_ENV_FEATURE_DIR);\
+	fi
 
 #H# del-bak             : Delete backup files
 del-bak:
