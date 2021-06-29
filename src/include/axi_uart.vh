@@ -58,10 +58,12 @@
 
   /* axi uart parameters */
   `define _DATA_WIDTH_UART_ 8
+  `define _UART_BAUDRATE_INIT_ 115200
   `ifndef FPGA_FULL
-    `define _UART_BAUDRATE_DIV_INIT_ 1736
+    `define _UART_MAIN_CLOCK_FREQ_ 100000000
   `else
-    `define _UART_BAUDRATE_DIV_INIT_ 434
+    `define _UART_MAIN_CLOCK_FREQ_ 50000000
   `endif
+  `define _UART_BAUDRATE_DIV_INIT_ (`_UART_MAIN_CLOCK_FREQ_/`_UART_BAUDRATE_INIT_)
 
   `endif
