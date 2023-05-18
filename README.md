@@ -15,7 +15,7 @@ The IP core implements a subset of the Xilinx **AXI UART 16550 v2.0 LogiCORE IP*
 
 ## Overview
 
-![](https://raw.githubusercontent.com/m4j0rt0m/axi-lite_uart-ipcore/develop/documentation/axi-uart.png)
+![](https://raw.githubusercontent.com/m4j0rt0m/axi-lite_uart-ipcore/documentation/documentation/axi-uart.png)
 
 
 ## Register Space
